@@ -12,7 +12,7 @@ import type { AgentTool } from '@electric-ax/agents-runtime'
 import { ConvexHttpClient } from 'convex/browser'
 import { api } from '../convex/_generated/api'
 import * as defs from '#/sim/defs'
-import { PartType, mg  } from '#/sim/types'
+import { PartType, mg } from '#/sim/types'
 import type {
   CircuitJSON,
   PartJSON,
@@ -20,7 +20,7 @@ import type {
   ProjectJSON,
   TerminalDefinition,
 } from '#/sim/types'
-import { partManagers, LED_COLORS, WIRE_COLORS  } from '#/editor/models'
+import { partManagers, LED_COLORS, WIRE_COLORS } from '#/editor/models'
 import type { EditorPart } from '#/editor/models'
 import { compileSketch } from '#/server/compile'
 import { PALETTE, defaultProject } from '#/lib/projects'
@@ -124,10 +124,12 @@ function describePart(p: PartJSON) {
 
 /**
  * Place `part` on `parent` so its first requested terminal sits exactly on the
- * named parent hole (rotation honoured), then resolve EVERY bottom terminal's
- * connection from geometry — the same 0.33·mg rule the editor uses — so the
- * stored connections can never disagree with where the legs physically are.
- * Throws if a requested hole is not where that leg lands.
+ * named parent hole, then resolve EVERY bottom terminal's connection from
+ * geometry — the same 0.33·mg rule the editor uses — so stored connections can
+ * never disagree with where the legs physically are. The four rotations are
+ * tried in order starting from the part's own; the first that satisfies all
+ * requested holes wins. If none does, the error lists where each leg lands at
+ * each rotation so the caller can pick reachable holes.
  */
 function placeOnParent(part: PartJSON, parent: PartJSON) {
   const requested = Object.fromEntries(
@@ -142,38 +144,62 @@ function placeOnParent(part: PartJSON, parent: PartJSON) {
   if (!anchor) throw new Error(`${part.type} has no terminal "${first.name}"`)
   if (!target)
     throw new Error(`${parent.type} has no terminal "${first.connections[0]}"`)
-  const rot = part.rotation
-  const local = (d: TerminalDefinition) => ({
-    x: d.position.x * Math.cos(rot) + d.position.z * Math.sin(rot),
-    z: -d.position.x * Math.sin(rot) + d.position.z * Math.cos(rot),
-  })
-  const a = local(anchor)
-  part.position = {
-    x: target.position.x - a.x,
-    y: dragSurfaceHeight(parent.type),
-    z: target.position.z - a.z,
-  }
-  const landed: Record<string, string | null> = {}
-  part.terminals = own
-    .filter((d) => d.surface === 'bottom')
-    .map((d) => {
-      const l = local(d)
-      const x = part.position.x + l.x
-      const z = part.position.z + l.z
-      const hit = parentTerms.find(
-        (t) => Math.hypot(t.position.x - x, t.position.z - z) < 0.33 * mg,
-      )
-      landed[d.name] = hit?.name ?? null
-      return { name: d.name, connections: hit ? [hit.name] : [] }
+
+  const attempt = (rot: number) => {
+    const local = (d: TerminalDefinition) => ({
+      x: d.position.x * Math.cos(rot) + d.position.z * Math.sin(rot),
+      z: -d.position.x * Math.sin(rot) + d.position.z * Math.cos(rot),
     })
-  for (const [name, want] of Object.entries(requested)) {
-    if (want && landed[name] !== want) {
-      throw new Error(
-        `Terminal "${name}" cannot reach ${want}: with "${first.name}" on ${first.connections[0]} it lands on ${landed[name] ?? 'no hole'}. ` +
-          `Legs are fixed distances apart (LED/resistor legs are adjacent columns); pick matching holes or rotate the part.`,
-      )
+    const a = local(anchor)
+    const position = {
+      x: target.position.x - a.x,
+      y: dragSurfaceHeight(parent.type),
+      z: target.position.z - a.z,
     }
+    const terminals = own
+      .filter((d) => d.surface === 'bottom')
+      .map((d) => {
+        const l = local(d)
+        const hit = parentTerms.find(
+          (t) =>
+            Math.hypot(
+              t.position.x - (position.x + l.x),
+              t.position.z - (position.z + l.z),
+            ) <
+            0.33 * mg,
+        )
+        return { name: d.name, connections: hit ? [hit.name] : [] }
+      })
+    const ok = Object.entries(requested).every(
+      ([name, want]) =>
+        !want ||
+        terminals.find((t) => t.name === name)?.connections[0] === want,
+    )
+    return { rot, position, terminals, ok }
   }
+
+  const tried = [0, 1, 2, 3].map((k) =>
+    attempt(part.rotation + (k * Math.PI) / 2),
+  )
+  const hit = tried.find((t) => t.ok)
+  if (!hit) {
+    const table = tried
+      .map(
+        (t) =>
+          `rotation ${Math.round((t.rot * 180) / Math.PI) % 360}°: ` +
+          t.terminals
+            .map((x) => `${x.name}→${x.connections[0] ?? 'none'}`)
+            .join(', '),
+      )
+      .join('; ')
+    throw new Error(
+      `Cannot place ${part.type} with ${JSON.stringify(requested)}: legs are a fixed distance apart. ` +
+        `With "${first.name}" on ${first.connections[0]} the legs land at — ${table}. Pick one of these combinations.`,
+    )
+  }
+  part.rotation = hit.rot
+  part.position = hit.position
+  part.terminals = hit.terminals
 }
 
 const LED_COLOR_VALUES: string[] = LED_COLORS.map((c) => c.value)
