@@ -1,6 +1,7 @@
 import {
   AVRADC,
   AVRIOPort,
+  AVRTWI,
   AVRTimer,
   AVRUSART,
   CPU,
@@ -13,8 +14,10 @@ import {
   timer0Config,
   timer1Config,
   timer2Config,
+  twiConfig,
   usart0Config,
 } from 'avr8js'
+import { I2CBus } from '../devices/i2c'
 
 export const AVR_CLOCK_HZ = 16e6
 
@@ -176,6 +179,9 @@ export class ArduinoRunner {
   readonly timer1: AVRTimer
   readonly timer2: AVRTimer
   readonly usart: AVRUSART
+  readonly twi: AVRTWI
+  /** I²C devices attach here by 7-bit address (SDA = A4, SCL = A5). */
+  readonly i2c: I2CBus
   readonly pins: ArduinoPin[]
   readonly pinsByName: Record<string, ArduinoPin>
   private byteListeners = new Set<(b: number) => void>()
@@ -191,6 +197,9 @@ export class ArduinoRunner {
     this.timer1 = new AVRTimer(this.cpu, timer1Config)
     this.timer2 = new AVRTimer(this.cpu, timer2Config)
     this.usart = new AVRUSART(this.cpu, usart0Config, AVR_CLOCK_HZ)
+    this.twi = new AVRTWI(this.cpu, twiConfig, AVR_CLOCK_HZ)
+    this.i2c = new I2CBus(this.twi)
+    this.twi.eventHandler = this.i2c
 
     const d = (
       name: string,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { observer } from 'mobx-react-lite'
-import { Calendar } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Switch } from '#/components/ui/switch'
 import {
@@ -9,22 +9,12 @@ import {
   TooltipTrigger,
 } from '#/components/ui/tooltip'
 import { PartProperties, Row, Section } from './Properties'
-import { EditableName } from './Navbar'
-import { PALETTE } from '#/lib/projects'
-import type { EditorProject, StampType } from '#/editor/models'
+import { PALETTE, PART_LABELS } from '#/lib/projects'
+import type { EditorPart, EditorProject, StampType } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 import { ArduinoUno } from '#/sim'
 
 const PANEL = 'hidden h-full min-h-0 w-64 shrink-0 flex-col bg-white md:flex'
-
-function formatDate(iso?: string) {
-  const d = iso ? new Date(iso) : new Date()
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
 
 // ------------------------------------------------------------ icon buttons
 const IconBtn = ({
@@ -188,116 +178,137 @@ export function CameraSection({
   )
 }
 
-// ------------------------------------------------------------ editor left
+// ------------------------------------------------------------ left panel
+/** "< Back" header used when the panel shows a selection; clicking also deselects. */
+function BackHeader({ label, onBack }: { label: string; onBack: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      className="flex items-center gap-1 border-b border-border/60 px-4 py-3 text-left text-sm font-semibold hover:bg-gray-50"
+    >
+      <ChevronLeft className="size-4" />
+      {label}
+    </button>
+  )
+}
+
+const Palette = observer(function Palette({
+  project,
+}: {
+  project: EditorProject
+}) {
+  return (
+    <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-5">
+      <h3 className="ml-2 text-sm font-bold">Insert Part</h3>
+      <ul className="flex select-none flex-col gap-1">
+        {PALETTE.map((p) => (
+          <li
+            key={p.stampType}
+            className={`cursor-pointer rounded-lg p-2 hover:bg-gray-100 ${project.stampType === p.stampType ? 'bg-gray-100' : ''}`}
+            onPointerDown={() => project.setStampType(p.stampType as StampType)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-md bg-gray-200 p-1.5">
+                <img
+                  src={p.img}
+                  alt={p.label}
+                  draggable={false}
+                  className="max-h-full max-w-full object-contain"
+                  style={{ mixBlendMode: 'darken' }}
+                />
+              </div>
+              <span>{p.label}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+})
+
+const SelectionPanel = observer(function SelectionPanel({
+  project,
+  part,
+}: {
+  project: EditorProject
+  part: EditorPart
+}) {
+  const push = () => project.pushSnapshotToHistory()
+  return (
+    <div className="flex flex-1 flex-col overflow-y-auto">
+      <BackHeader
+        label={PART_LABELS[part.type] ?? part.type}
+        onBack={() => project.setSelection(null)}
+      />
+      <CameraSection target={part} multiple={false} />
+      <Section title="Rotation">
+        <div className="flex gap-2.5">
+          <IconBtn
+            label="Rotate Clockwise"
+            onClick={() => {
+              part.rotate(-Math.PI / 2)
+              push()
+            }}
+          >
+            <RotateIcon cw />
+          </IconBtn>
+          <IconBtn
+            label="Rotate Anticlockwise"
+            onClick={() => {
+              part.rotate(Math.PI / 2)
+              push()
+            }}
+          >
+            <RotateIcon cw={false} />
+          </IconBtn>
+        </div>
+      </Section>
+      {part.type !== 'breadboard' && (
+        <Section title="Inspect">
+          <Row label="Show Labels">
+            <Switch
+              checked={part.showLabels}
+              onCheckedChange={(v) => {
+                part.setShowLabels(v)
+                push()
+              }}
+            />
+          </Row>
+          <Row label="Show Voltages">
+            <Switch
+              checked={part.showVoltages}
+              onCheckedChange={(v) => {
+                part.setShowVoltages(v)
+                push()
+              }}
+            />
+          </Row>
+        </Section>
+      )}
+      <PartProperties key={part.id} part={part} />
+    </div>
+  )
+})
+
+/**
+ * The authoritative left panel: the palette when nothing is selected,
+ * the selection's properties (with a Back button that deselects) otherwise.
+ */
 export const EditorLeftPanel = observer(function EditorLeftPanel({
   project,
 }: {
   project: EditorProject
 }) {
+  const part = project.selection
   return (
     <aside className={`${PANEL} border-r border-border`}>
-      <div className="flex flex-col gap-3 border-b border-border/60 px-6 py-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="relative text-base font-semibold">
-            <EditableName project={project} />
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 text-sm text-gray-800">
-          <Calendar className="size-3.5" />
-          <span>{formatDate(project.created_at)}</span>
-        </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto border-b border-border/60 px-4 py-5">
-        <h3 className="ml-2 text-sm font-bold">Insert Part</h3>
-        <ul className="flex select-none flex-col gap-1">
-          {PALETTE.map((p) => (
-            <li
-              key={p.stampType}
-              className={`cursor-pointer rounded-lg p-2 hover:bg-gray-100 ${project.stampType === p.stampType ? 'bg-gray-100' : ''}`}
-              onPointerDown={() =>
-                project.setStampType(p.stampType as StampType)
-              }
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-md bg-gray-200 p-1.5">
-                  <img
-                    src={p.img}
-                    alt={p.label}
-                    draggable={false}
-                    className="max-h-full max-w-full object-contain"
-                    style={{ mixBlendMode: 'darken' }}
-                  />
-                </div>
-                <span>{p.label}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </aside>
-  )
-})
-
-// ----------------------------------------------------------- editor right
-export const EditorRightPanel = observer(function EditorRightPanel({
-  project,
-}: {
-  project: EditorProject
-}) {
-  const part = project.selection
-  const push = () => project.pushSnapshotToHistory()
-  return (
-    <aside className={`${PANEL} overflow-y-auto border-l border-border`}>
-      {!part ? (
-        <CameraSection target={project} multiple />
+      {part ? (
+        <SelectionPanel project={project} part={part} />
       ) : (
         <>
-          <CameraSection target={part} multiple={false} />
-          <Section title="Rotation">
-            <div className="flex gap-2.5">
-              <IconBtn
-                label="Rotate Clockwise"
-                onClick={() => {
-                  part.rotate(-Math.PI / 2)
-                  push()
-                }}
-              >
-                <RotateIcon cw />
-              </IconBtn>
-              <IconBtn
-                label="Rotate Anticlockwise"
-                onClick={() => {
-                  part.rotate(Math.PI / 2)
-                  push()
-                }}
-              >
-                <RotateIcon cw={false} />
-              </IconBtn>
-            </div>
-          </Section>
-          {part.type !== 'breadboard' && (
-            <Section title="Inspect">
-              <Row label="Show Labels">
-                <Switch
-                  checked={part.showLabels}
-                  onCheckedChange={(v) => {
-                    part.setShowLabels(v)
-                    push()
-                  }}
-                />
-              </Row>
-              <Row label="Show Voltages">
-                <Switch
-                  checked={part.showVoltages}
-                  onCheckedChange={(v) => {
-                    part.setShowVoltages(v)
-                    push()
-                  }}
-                />
-              </Row>
-            </Section>
-          )}
-          <PartProperties key={part.id} part={part} />
+          <CameraSection target={project} multiple />
+          <Palette project={project} />
         </>
       )}
     </aside>
@@ -305,26 +316,6 @@ export const EditorRightPanel = observer(function EditorRightPanel({
 })
 
 // -------------------------------------------------------------- simulator
-export const SimLeftPanel = observer(function SimLeftPanel({
-  simulator,
-}: {
-  simulator: Simulator
-}) {
-  return (
-    <aside className={`${PANEL} border-r border-border`}>
-      <div className="flex flex-col gap-3 border-b border-border/60 px-6 py-5">
-        <div className="relative py-1 text-base font-semibold">
-          {simulator.name}
-        </div>
-        <div className="flex items-center gap-1.5 text-sm text-gray-800">
-          <Calendar className="size-3.5" />
-          <span>{formatDate(simulator.created_at)}</span>
-        </div>
-      </div>
-    </aside>
-  )
-})
-
 const ArduinoLogs = observer(function ArduinoLogs({
   part,
 }: {
@@ -343,7 +334,8 @@ const ArduinoLogs = observer(function ArduinoLogs({
   )
 })
 
-export const SimRightPanel = observer(function SimRightPanel({
+/** Simulator left panel: scene camera, or the selected part's camera + readouts with a Back button. */
+export const SimLeftPanel = observer(function SimLeftPanel({
   simulator,
 }: {
   simulator: Simulator
@@ -352,11 +344,13 @@ export const SimRightPanel = observer(function SimRightPanel({
   const [, force] = useForceTick(simulator, 30)
   void force
   return (
-    <aside className={`${PANEL} overflow-y-auto border-l border-border`}>
-      {!part ? (
-        <CameraSection target={simulator} multiple />
-      ) : (
-        <>
+    <aside className={`${PANEL} border-r border-border`}>
+      {part ? (
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          <BackHeader
+            label={PART_LABELS[part.type] ?? part.type}
+            onBack={() => simulator.setSelection(null)}
+          />
           <CameraSection
             target={{
               fitCamera: () => simulator.fitCameraTo(part),
@@ -365,7 +359,9 @@ export const SimRightPanel = observer(function SimRightPanel({
             multiple={false}
           />
           {part instanceof ArduinoUno && <ArduinoLogs part={part} />}
-        </>
+        </div>
+      ) : (
+        <CameraSection target={simulator} multiple />
       )}
     </aside>
   )

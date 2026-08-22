@@ -38,7 +38,18 @@ export const PALETTE: { label: string; stampType: string; img: string }[] = [
     img: '/parts/breadboard.webp',
   },
   { label: 'Battery', stampType: 'battery', img: '/parts/battery.webp' },
+  { label: '16x2 LCD', stampType: 'lcd1602', img: '/parts/timer.webp' },
+  {
+    label: '16x2 LCD (I2C)',
+    stampType: 'lcd1602-i2c',
+    img: '/parts/timer.webp',
+  },
 ]
+
+/** Display names by part type (palette labels + selection header). */
+export const PART_LABELS: Record<string, string> = Object.fromEntries(
+  PALETTE.map((p) => [p.stampType, p.label]),
+)
 
 /** The reference's blank template: breadboard + 9V battery wired to the top rails. */
 export function defaultProject(

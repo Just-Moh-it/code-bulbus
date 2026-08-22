@@ -481,3 +481,59 @@ export const raspberryPiTerminals: TerminalDefinition[] = (() => {
     }))
   return [...row('0', z0), ...row('1', z0 - mg)]
 })()
+
+// ------------------------------------------------------------- 16×2 LCD
+/** 80 × 36 mm module, ~10 mm tall with header (1 unit ≈ 10 mm). */
+export const lcd1602Dimensions: Dimensions = {
+  width: 8,
+  height: 1.0,
+  depth: 3.6,
+}
+const LCD_PIN_NAMES = [
+  'VSS',
+  'VDD',
+  'V0',
+  'RS',
+  'RW',
+  'E',
+  'D0',
+  'D1',
+  'D2',
+  'D3',
+  'D4',
+  'D5',
+  'D6',
+  'D7',
+  'A',
+  'K',
+]
+/** 16 male pins on 0.1" pitch along the back edge, pointing down into the breadboard. */
+export const lcd1602Terminals: TerminalDefinition[] = LCD_PIN_NAMES.map(
+  (name, i) => ({
+    surface: 'bottom',
+    type: 'male-pin',
+    name,
+    label: name,
+    position: {
+      x: -((LCD_PIN_NAMES.length - 1) * mg) / 2 + i * mg,
+      y: -0.5 * lcd1602Dimensions.height,
+      z: -lcd1602Dimensions.depth / 2 + mg,
+    },
+  }),
+)
+
+export const lcd1602I2cDimensions: Dimensions = lcd1602Dimensions
+const LCD_I2C_PIN_NAMES = ['GND', 'VCC', 'SDA', 'SCL']
+export const lcd1602I2cTerminals: TerminalDefinition[] = LCD_I2C_PIN_NAMES.map(
+  (name, i) => ({
+    surface: 'bottom',
+    type: 'male-pin',
+    name,
+    label: name,
+    position: {
+      x: -lcd1602I2cDimensions.width / 2 + 4 * mg + i * mg,
+      y: -0.5 * lcd1602I2cDimensions.height,
+      z: -lcd1602I2cDimensions.depth / 2 + mg,
+    },
+  }),
+)

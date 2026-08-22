@@ -30,6 +30,12 @@ export const stampModels: Record<PartTypeT, ComponentType> = {
   [PartType.ArduinoUno]: M.ArduinoUnoModel,
   [PartType.Motor]: M.MotorModel,
   [PartType.EightPinChip]: M.EightPinChipModel,
+  [PartType.Lcd1602]: M.Lcd1602Model,
+  [PartType.Lcd1602I2c]: Lcd1602I2cStamp,
+}
+
+function Lcd1602I2cStamp() {
+  return <M.Lcd1602Model i2c />
 }
 
 /** Editor-side model view: passes the part's observable props to its GLB component. */

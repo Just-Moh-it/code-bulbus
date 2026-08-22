@@ -18,6 +18,8 @@ export const PartType = {
   ArduinoUno: 'arduino-uno',
   Motor: 'motor',
   EightPinChip: '8-pin-chip',
+  Lcd1602: 'lcd1602',
+  Lcd1602I2c: 'lcd1602-i2c',
 } as const
 export type PartType = (typeof PartType)[keyof typeof PartType]
 
@@ -73,6 +75,7 @@ export interface PartJSON {
   pinLabels?: Record<string, string> // 8-pin chip
   subcktCode?: string // 8-pin chip body of .subckt
   chipName?: string // 8-pin chip
+  i2cAddress?: number // I²C LCD backpack (0x27 / 0x3F)
   hexFile?: string // arduino
   files?: Record<
     string,

@@ -9,12 +9,7 @@ import { EditorProject } from '#/editor/models'
 import { ProjectCanvas } from '#/editor/scene/ProjectCanvas'
 import { PartContextMenu } from '#/components/editor/ContextMenu'
 import { EditorNavbar } from '#/components/editor/Navbar'
-import {
-  EditorLeftPanel,
-  EditorRightPanel,
-  SimLeftPanel,
-  SimRightPanel,
-} from '#/components/editor/Panels'
+import { EditorLeftPanel, SimLeftPanel } from '#/components/editor/Panels'
 import { Simulator } from '#/simulator/model'
 import { SimCanvas } from '#/simulator/SimCanvas'
 import { debounce, defaultProject } from '#/lib/projects'
@@ -135,7 +130,6 @@ function ProjectPage() {
               <SimCanvas simulator={simulator} />
               <SimMessages simulator={simulator} />
             </div>
-            <SimRightPanel simulator={simulator} />
           </>
         ) : (
           <>
@@ -155,7 +149,6 @@ function ProjectPage() {
                 </>
               )}
             </div>
-            {project && <EditorRightPanel project={project} />}
           </>
         )}
       </main>

@@ -25,6 +25,8 @@ import {
   BatteryPart,
   CapacitorPart,
   EightPinChipPart,
+  LCD_I2C_ADDRESSES,
+  Lcd1602I2cPart,
   LED_COLORS,
   LedPart,
   NPN_MODEL_OPTIONS,
@@ -367,6 +369,24 @@ const ChipProps = observer(({ part }: { part: EightPinChipPart }) => {
   )
 })
 
+const LcdI2cProps = observer(({ part }: { part: Lcd1602I2cPart }) => (
+  <Section title="LCD Properties">
+    <Row label="I2C Address">
+      <SmallSelect
+        value={String(part.i2cAddress)}
+        options={LCD_I2C_ADDRESSES.map((a) => ({
+          value: String(a),
+          label: `0x${a.toString(16).toUpperCase()}`,
+        }))}
+        onChange={(v) => {
+          part.setI2cAddress(Number(v))
+          part.circuit.project.pushSnapshotToHistory()
+        }}
+      />
+    </Row>
+  </Section>
+))
+
 /** Per-type property panel (null for parts without one). */
 export const PartProperties = observer(function PartProperties({
   part,
@@ -397,5 +417,6 @@ export const PartProperties = observer(function PartProperties({
   if (part instanceof WireEndPart) return <WireProps part={part} />
   if (part instanceof ArduinoUnoPart) return <ArduinoProps part={part} />
   if (part instanceof EightPinChipPart) return <ChipProps part={part} />
+  if (part instanceof Lcd1602I2cPart) return <LcdI2cProps part={part} />
   return null
 })

@@ -14,6 +14,8 @@ export { RaspberryPiModel } from './rpi'
 export { ResistorModel } from './resistor'
 export { TactileSwitchModel } from './switch'
 export { WireEndModel } from './wire-end'
+export { Lcd1602Model } from './lcd1602'
+export type { LcdHandle } from './lcd1602'
 export { mapRange, resistorBands } from './util'
 
 /** Warm every model so adding a part never suspends the scene. */

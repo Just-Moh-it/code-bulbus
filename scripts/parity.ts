@@ -8,6 +8,8 @@ import type {
   ArduinoUno,
   Capacitor,
   CircuitJSON,
+  Lcd1602,
+  Lcd1602I2c,
   Led,
   Motor,
   PartJSON,
@@ -426,6 +428,95 @@ const cases: Record<string, () => Promise<void>> = {
       last > 25 && last < 35,
       `${fmt(last)} mA, pin1 label: ${(parts[3].pinLabels as Record<string, string>)['1']}`,
     )
+  },
+  // --------------------------------------------------------------- lcd
+  async lcd() {
+    console.log(
+      '\n# 16x2 LCD, 4-bit parallel via LiquidCrystal(12, 11, 5, 4, 3, 2)',
+    )
+    const hex = await hexFor(
+      '#include <LiquidCrystal.h>\nLiquidCrystal lcd(12, 11, 5, 4, 3, 2);\nvoid setup(){ lcd.begin(16,2); lcd.print("hello, world!"); }\nvoid loop(){ lcd.setCursor(0,1); lcd.print(millis()/1000); }',
+    )
+    const parts: PartJSON[] = []
+    const wires: WireJSON[] = []
+    const bb = part('breadboard', null)
+    const uno = part('arduino-uno', null, {}, { hexFile: hex })
+    // pins along row E, columns 1..16 (VSS VDD V0 RS RW E D0..D7 A K)
+    const names = [
+      'VSS',
+      'VDD',
+      'V0',
+      'RS',
+      'RW',
+      'E',
+      'D0',
+      'D1',
+      'D2',
+      'D3',
+      'D4',
+      'D5',
+      'D6',
+      'D7',
+      'A',
+      'K',
+    ]
+    const lcd = part(
+      'lcd1602',
+      bb.id,
+      Object.fromEntries(names.map((name, i) => [name, `E.${i + 1}`])),
+    )
+    parts.push(bb, uno, lcd)
+    const w = (col: number, pin: string) =>
+      wire(parts, wires, bb.id, `A.${col}`, uno.id, pin)
+    w(1, 'gnd.2') // VSS
+    w(2, '5v') // VDD
+    w(4, '12') // RS
+    w(5, 'gnd.1') // RW
+    w(6, '~11') // E
+    w(11, '~5') // D4
+    w(12, '4') // D5
+    w(13, '~3') // D6
+    w(14, '2') // D7
+    const c = await run({ parts, wires }, 12, () => {})
+    const p = c.partsById[lcd.id] as Lcd1602
+    const l1 = p.lcd.text(0)
+    const l2 = p.lcd.text(1)
+    const unoP = c.partsById[uno.id]
+    console.log('   debug', JSON.stringify(p.debug), 'version', p.lcd.version, 'E node', p.terminalsByName.E.node, 'uno ~11 node', unoP.terminalsByName['~11'].node, 'bb E.6', c.partsById[bb.id].terminalsByName['E.6'].node, 'bb A.6', c.partsById[bb.id].terminalsByName['A.6'].node)
+    check(
+      'LCD line 1 = "hello, world!"',
+      l1.trimEnd() === 'hello, world!',
+      JSON.stringify([l1, l2]),
+    )
+    check(
+      'LCD line 2 shows seconds',
+      /\d/.test(l2) && p.lcd.displayOn,
+      `backlight=${p.lcd.backlight}`,
+    )
+  },
+  async 'lcd-i2c'() {
+    console.log('\n# 16x2 LCD over I2C (PCF8574 @ 0x27) via LiquidCrystal_I2C')
+    const hex = await hexFor(
+      '#include <LiquidCrystal_I2C.h>\nLiquidCrystal_I2C lcd(0x27,16,2);\nvoid setup(){ lcd.init(); lcd.backlight(); lcd.print("I2C OK"); lcd.setCursor(0,1); lcd.print("addr 0x27"); }\nvoid loop(){}',
+    )
+    const parts: PartJSON[] = []
+    const wires: WireJSON[] = []
+    const uno = part('arduino-uno', null, {}, { hexFile: hex })
+    const lcd = part('lcd1602-i2c', null, {}, { i2cAddress: 0x27 })
+    parts.push(uno, lcd)
+    wire(parts, wires, lcd.id, 'GND', uno.id, 'gnd.2')
+    wire(parts, wires, lcd.id, 'VCC', uno.id, '5v')
+    wire(parts, wires, lcd.id, 'SDA', uno.id, 'a4')
+    wire(parts, wires, lcd.id, 'SCL', uno.id, 'a5')
+    const c = await run({ parts, wires }, 8, () => {})
+    const p = c.partsById[lcd.id] as Lcd1602I2c
+    check(
+      'I2C LCD shows text',
+      p.lcd.text(0).startsWith('I2C OK') &&
+        p.lcd.text(1).startsWith('addr 0x27'),
+      JSON.stringify([p.lcd.text(0), p.lcd.text(1)]),
+    )
+    check('I2C LCD backlight on', p.lcd.backlight && p.lcd.displayOn, '')
   },
   // ----------------------------------------------------- clock + ratings
   async clock() {

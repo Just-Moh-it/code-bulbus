@@ -16,6 +16,7 @@ import { Timer } from './parts/timer'
 import { EightPinChip } from './parts/eight-pin-chip'
 import { Motor } from './parts/motor'
 import { RaspberryPi } from './parts/raspberry-pi'
+import { Lcd1602, Lcd1602I2c } from './parts/lcd1602'
 import { PartType } from './types'
 import type {
   CircuitJSON,
@@ -42,6 +43,8 @@ export const partRegistry: Record<PartTypeT, PartCtor> = {
   [PartType.EightPinChip]: EightPinChip,
   [PartType.Motor]: Motor,
   [PartType.RaspberryPi]: RaspberryPi,
+  [PartType.Lcd1602]: Lcd1602,
+  [PartType.Lcd1602I2c]: Lcd1602I2c,
 }
 
 /** Order part ids so that every parent precedes its children. */

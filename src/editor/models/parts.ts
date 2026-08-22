@@ -403,6 +403,42 @@ export class EightPinChipPart extends EditorPart {
   }
 }
 
+export const LCD_I2C_ADDRESSES = [0x27, 0x3f] as const
+
+export class Lcd1602Part extends EditorPart {
+  static type = PartType.Lcd1602
+  static dimensions = defs.lcd1602Dimensions
+  static eligibleParents = BB
+  get terminalDefinitions() {
+    return defs.lcd1602Terminals
+  }
+}
+
+export class Lcd1602I2cPart extends EditorPart {
+  static type = PartType.Lcd1602I2c
+  static dimensions = defs.lcd1602I2cDimensions
+  static eligibleParents = BB
+  declare i2cAddress: number
+  protected init(j: EditorPartInit) {
+    this.i2cAddress = j.i2cAddress ?? 0x27
+    makeObservable(this, { i2cAddress: true, setI2cAddress: action })
+    super.init(j)
+  }
+  setI2cAddress(a: number) {
+    this.i2cAddress = a
+  }
+  get terminalDefinitions() {
+    return defs.lcd1602I2cTerminals
+  }
+  loadJSON(j: PartJSON) {
+    super.loadJSON(j)
+    this.i2cAddress = j.i2cAddress ?? 0x27
+  }
+  toJSON() {
+    return { ...super.toJSON(), i2cAddress: this.i2cAddress }
+  }
+}
+
 // ------------------------------------------------------------------ registry
 export type PartManager = new (j: EditorPartInit) => EditorPart
 
@@ -421,6 +457,8 @@ export const partManagers: Record<PartTypeT, PartManager> = {
   [PartType.ArduinoUno]: ArduinoUnoPart,
   [PartType.Motor]: MotorPart,
   [PartType.EightPinChip]: EightPinChipPart,
+  [PartType.Lcd1602]: Lcd1602Part,
+  [PartType.Lcd1602I2c]: Lcd1602I2cPart,
 }
 
 export function getPartModule(
