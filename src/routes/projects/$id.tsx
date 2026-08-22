@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
+import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
@@ -51,7 +52,18 @@ function ProjectPage() {
     if (!json) {
       if (row) setJson(row as ProjectJSON)
       else if (template === 'thermostat') setJson(thermostatProject(id))
-      else if (template) setJson(defaultProject(id))
+      else if (template) {
+        // brand-new project: persist the template now (later saves follow user edits only)
+        const fresh = defaultProject(id)
+        setJson(fresh)
+        void upsert({
+          id: fresh.id,
+          name: fresh.name,
+          user_id: null,
+          parent_id: null,
+          circuit: fresh.circuit,
+        })
+      }
       seenVersion.current = version
       return
     }

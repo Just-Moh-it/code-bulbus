@@ -12,7 +12,7 @@ import type { AgentTool } from '@electric-ax/agents-runtime'
 import { ConvexHttpClient } from 'convex/browser'
 import { api } from '../convex/_generated/api'
 import * as defs from '#/sim/defs'
-import { PartType } from '#/sim/types'
+import { PartType, mg  } from '#/sim/types'
 import type {
   CircuitJSON,
   PartJSON,
@@ -20,12 +20,10 @@ import type {
   ProjectJSON,
   TerminalDefinition,
 } from '#/sim/types'
-import { partManagers } from '#/editor/models'
+import { partManagers, LED_COLORS, WIRE_COLORS  } from '#/editor/models'
 import type { EditorPart } from '#/editor/models'
 import { compileSketch } from '#/server/compile'
 import { PALETTE, defaultProject } from '#/lib/projects'
-import { LED_COLORS, WIRE_COLORS } from '#/editor/models'
-import { mg } from '#/sim/types'
 import { ArduinoUno, Battery, Circuit, Led, Motor, Resistor } from '#/sim'
 
 const CONVEX_URL = process.env.VITE_CONVEX_URL
