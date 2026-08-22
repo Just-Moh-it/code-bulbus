@@ -92,9 +92,7 @@ const Scene = observer(function Scene({ project }: { project: EditorProject }) {
         <group ref={rootRef}>
           {circuit.parts.map((p) => (
             <PartContainer key={p.id} part={p}>
-              <Suspense fallback={null}>
-                <EditorPartModel part={p} />
-              </Suspense>
+              <EditorPartModel part={p} />
             </PartContainer>
           ))}
           {circuit.wires.map((w) => (

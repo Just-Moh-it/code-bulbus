@@ -1,4 +1,5 @@
 import {
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -284,9 +285,11 @@ export const PartContainer = observer(function PartContainer({
     >
       <group ref={objectRef}>
         <group ref={selectionRef}>
-          <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
-            {children}
-          </ScaledGroup>
+          <Suspense fallback={null}>
+            <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
+              {children}
+            </ScaledGroup>
+          </Suspense>
         </group>
         {part.terminals.map((t) => (
           <TerminalLabel key={t.name} terminal={t} />

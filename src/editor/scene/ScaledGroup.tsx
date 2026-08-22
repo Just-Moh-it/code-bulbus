@@ -31,7 +31,12 @@ export function fitToDimensions(
 
 type Props = ComponentProps<'group'> & { dimensions: Dimensions }
 
-/** Wraps a GLB model and scales it to the part's canonical dimensions (once per dimensions value). */
+/**
+ * Wraps a GLB model and scales it so its bounding box equals the part's
+ * canonical `dimensions`. The fit runs once the children have real geometry;
+ * until then it retries each frame (models load asynchronously), and it
+ * re-runs whenever `dimensions` change.
+ */
 export const ScaledGroup = memo(function ScaledGroup({
   dimensions,
   children,
@@ -44,10 +49,24 @@ export const ScaledGroup = memo(function ScaledGroup({
   useLayoutEffect(() => {
     const g = ref.current
     if (!g) return
-    if (g.userData.scaledTo !== key) {
-      g.userData.scaledTo = key
-      setScale(fitToDimensions(g, dimensions).clone())
+    let raf = 0
+    const attempt = () => {
+      const current = ref.current
+      if (!current) return
+      // measure at unit scale so a previous fit doesn't skew the box
+      current.scale.set(1, 1, 1)
+      current.updateWorldMatrix(true, true)
+      const e = measure(current)
+      if (e.width > 0 && e.height > 0 && e.depth > 0) {
+        const s = fitToDimensions(current, dimensions).clone()
+        current.userData.scaledTo = key
+        setScale(s)
+      } else {
+        raf = requestAnimationFrame(attempt)
+      }
     }
+    if (g.userData.scaledTo !== key) attempt()
+    return () => cancelAnimationFrame(raf)
   }, [key, dimensions])
 
   return (

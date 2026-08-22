@@ -159,11 +159,11 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
         }}
       >
         <group ref={selectionRef}>
-          <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
-            <Suspense fallback={null}>
+          <Suspense fallback={null}>
+            <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
               <SimPartModel part={part} />
-            </Suspense>
-          </ScaledGroup>
+            </ScaledGroup>
+          </Suspense>
         </group>
         {part.terminals.map((t) => (
           <VoltageLabel key={t.name} terminal={t} />
