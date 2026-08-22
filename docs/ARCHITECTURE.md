@@ -105,6 +105,29 @@ Pipeline latency from a button press to a pin reacting is ~4 windows by design.
 `scripts/parity.ts` pins this behaviour; run subsets (`bun run parity 555 pwm`)
 to stay under 30 s.
 
+## Agents (Electric Agents)
+
+Each chat in the right-hand panel is one durable **Electric Agents** entity of
+type `bulbus` (`agents/server.ts`), spawned with `{ projectId }` and tagged
+`project=<id>`, so any number of agents can work on one project concurrently.
+
+```
+browser ──observe (read-only)──▶ coordinator :4437 ◀──webhook wake── agents/server.ts :4440
+   │                                  ▲                                   │
+   └──POST /api/agents/{spawn,send}───┘ (server routes; browsers cannot write)   └── tools → Convex
+```
+
+- `bun run agents:runtime` starts Postgres + Electric + the coordinator in Docker;
+  `bun run agents:server` runs our entity server (needs `ANTHROPIC_API_KEY`).
+- Tools (`agents/tools.ts`) operate on project JSON via Convex HTTP and bump
+  `agentVersion`; the editor page adopts the new row when that changes. Every
+  tool call must go through `get_project` → edit → `simulate` so the agent
+  verifies its own work with the real engine (headless `Circuit`).
+- Part placement by tools mirrors snapping: the part is positioned so its first
+  connected terminal sits on the parent's named hole (`placeOnParent`).
+- The membership stream's collections are runtime proxies (`toArray`), not
+  TanStack `Collection`s — read them directly; `useChat(db)` handles the chat.
+
 ## Known deviations from the reference
 
 - Placement snaps to terminals immediately (`Stamp.tsx`); the reference only
