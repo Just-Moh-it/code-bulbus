@@ -481,8 +481,6 @@ const cases: Record<string, () => Promise<void>> = {
     const p = c.partsById[lcd.id] as Lcd1602
     const l1 = p.lcd.text(0)
     const l2 = p.lcd.text(1)
-    const unoP = c.partsById[uno.id]
-    console.log('   debug', JSON.stringify(p.debug), 'version', p.lcd.version, 'E node', p.terminalsByName.E.node, 'uno ~11 node', unoP.terminalsByName['~11'].node, 'bb E.6', c.partsById[bb.id].terminalsByName['E.6'].node, 'bb A.6', c.partsById[bb.id].terminalsByName['A.6'].node)
     check(
       'LCD line 1 = "hello, world!"',
       l1.trimEnd() === 'hello, world!',
@@ -508,7 +506,8 @@ const cases: Record<string, () => Promise<void>> = {
     wire(parts, wires, lcd.id, 'VCC', uno.id, '5v')
     wire(parts, wires, lcd.id, 'SDA', uno.id, 'a4')
     wire(parts, wires, lcd.id, 'SCL', uno.id, 'a5')
-    const c = await run({ parts, wires }, 8, () => {})
+    // LiquidCrystal_I2C.init() sleeps 1 s before talking to the chip → ~30 windows
+    const c = await run({ parts, wires }, 30, () => {})
     const p = c.partsById[lcd.id] as Lcd1602I2c
     check(
       'I2C LCD shows text',

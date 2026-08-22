@@ -184,6 +184,8 @@ export class Lcd1602I2c extends LcdBase {
   static dimensions = lcd1602I2cDimensions
   declare address: number
   readonly expander = new PCF8574()
+  /** Diagnostics: whether an Arduino was found on SDA/SCL and how many expander writes arrived. */
+  readonly debug = { uno: false, writes: 0 }
 
   protected init(init: PartInit) {
     this.address = init.i2cAddress ?? 0x27
@@ -198,11 +200,13 @@ export class Lcd1602I2c extends LcdBase {
     const t = this.terminalsByName
     // SDA/SCL are A4/A5 on the Uno; accept either header.
     const uno = arduinoOnNet(t.SDA) ?? arduinoOnNet(t.SCL)
+    this.debug.uno = !!uno
     if (!uno) return
     this.track(uno.simulator.i2c.attach(this.address, this.expander))
     let lastE = false
     this.track(
       this.expander.onChange((value) => {
+        this.debug.writes++
         const backlight = (value & 0x08) !== 0
         if (backlight !== this.lcd.backlight) {
           this.lcd.backlight = backlight
