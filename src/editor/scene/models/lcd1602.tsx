@@ -121,7 +121,7 @@ export const Lcd1602Model = forwardRef<LcdHandle, Props>(function Lcd1602Model(
     if (!ctx) return
     draw(ctx, s, blink.current)
     texture.needsUpdate = true
-    if (glass.current) glass.current.emissiveIntensity = s.backlight ? 1.4 : 0
+    if (glass.current) glass.current.emissiveIntensity = s.backlight ? 0.75 : 0
   }
 
   useEffect(() => {
@@ -168,7 +168,7 @@ export const Lcd1602Model = forwardRef<LcdHandle, Props>(function Lcd1602Model(
           map={texture}
           emissiveMap={texture}
           emissive="#ffffff"
-          emissiveIntensity={1.4}
+          emissiveIntensity={0.75}
           toneMapped={false}
           roughness={0.3}
         />
