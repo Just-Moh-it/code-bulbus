@@ -17,6 +17,8 @@ import type {
   WireJSON,
 } from '#/sim'
 import { compileSketch } from '#/server/compile'
+import { THERMOSTAT_SKETCH, thermostatProject } from '#/lib/thermostat'
+import type { Tmp36 } from '#/sim'
 
 const keepalive = setInterval(() => {}, 1000)
 const o = { x: 0, y: 0, z: 0 }
@@ -516,6 +518,35 @@ const cases: Record<string, () => Promise<void>> = {
       JSON.stringify([p.lcd.text(0), p.lcd.text(1)]),
     )
     check('I2C LCD backlight on', p.lcd.backlight && p.lcd.displayOn, '')
+  },
+  // -------------------------------------------------------------- thermostat
+  async thermostat() {
+    console.log('\n# thermostat demo: TMP36 + pot + LCD + heat/cool LEDs')
+    const hex = await hexFor(THERMOSTAT_SKETCH)
+    const json = thermostatProject('thermo')
+    const unoJ = json.circuit.parts.find((p) => p.type === 'arduino-uno')!
+    unoJ.hexFile = hex
+    const lcdJ = json.circuit.parts.find((p) => p.type === 'lcd1602')!
+    const sensorJ = json.circuit.parts.find((p) => p.type === 'tmp36')!
+    const texts: string[] = []
+    await run(json.circuit, 40, (c, i) => {
+      const lcd = c.partsById[lcdJ.id] as Lcd1602
+      const sensor = c.partsById[sensorJ.id] as Tmp36
+      if (i === 20) sensor.setTemperature(5) // 41 °F → should start heating
+      if (i === 12 || i === 39)
+        texts.push(`${lcd.lcd.text(0)}|${lcd.lcd.text(1)}`)
+    })
+    const [warm, cold] = texts
+    check(
+      'LCD shows ambient/setpoint and COOLING at 22 °C (72 °F)',
+      /Amb 7\dF Set 6\dF/.test(warm ?? '') && /COOLING/.test(warm ?? ''),
+      JSON.stringify(warm),
+    )
+    check(
+      'switches to HEATING after the sensor drops to 5 °C',
+      /Amb 4\dF/.test(cold ?? '') && /HEATING/.test(cold ?? ''),
+      JSON.stringify(cold),
+    )
   },
   // ----------------------------------------------------- clock + ratings
   async clock() {

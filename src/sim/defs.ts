@@ -537,3 +537,45 @@ export const lcd1602I2cTerminals: TerminalDefinition[] = LCD_I2C_PIN_NAMES.map(
     },
   }),
 )
+
+// ------------------------------------------------------------ potentiometer
+/** ~10 mm trim-pot, 3 legs on 0.1" pitch: 1, wiper, 3. */
+export const potentiometerDimensions: Dimensions = {
+  width: 0.95,
+  height: 0.95,
+  depth: 0.95,
+}
+export const potentiometerTerminals: TerminalDefinition[] = [
+  '1',
+  'wiper',
+  '3',
+].map((name, i) => ({
+  surface: 'bottom',
+  type: 'male-pin',
+  name,
+  label: name === 'wiper' ? 'Wiper' : name,
+  position: {
+    x: (i - 1) * mg,
+    y: -0.3 * potentiometerDimensions.height,
+    z: 0.4 * potentiometerDimensions.depth,
+  },
+}))
+
+// -------------------------------------------------------------------- TMP36
+/** TO-92 package, flat face forward; legs (+Vs, Vout, GND) on 0.1" pitch. */
+export const tmp36Dimensions: Dimensions = {
+  width: 0.6,
+  height: 0.7,
+  depth: 0.4,
+}
+export const tmp36Terminals: TerminalDefinition[] = [
+  { name: 'vs', label: '+Vs' },
+  { name: 'vout', label: 'Vout' },
+  { name: 'gnd', label: 'GND' },
+].map((t, i) => ({
+  surface: 'bottom',
+  type: 'male-pin',
+  name: t.name,
+  label: t.label,
+  position: { x: (i - 1) * mg, y: -0.4 * tmp36Dimensions.height, z: 0 },
+}))

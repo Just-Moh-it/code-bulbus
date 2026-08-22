@@ -27,6 +27,8 @@ import {
   EightPinChipPart,
   LCD_I2C_ADDRESSES,
   Lcd1602I2cPart,
+  PotentiometerPart,
+  Tmp36Part,
   LED_COLORS,
   LedPart,
   NPN_MODEL_OPTIONS,
@@ -387,6 +389,96 @@ const LcdI2cProps = observer(({ part }: { part: Lcd1602I2cPart }) => (
   </Section>
 ))
 
+/** Native range input styled to match the panel (no shadcn slider installed). */
+export function RangeRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+  onCommit,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  format: (v: number) => string
+  onChange: (v: number) => void
+  onCommit?: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-sm">
+        <span>{label}</span>
+        <span className="tabular-nums text-muted-foreground">
+          {format(value)}
+        </span>
+      </div>
+      <input
+        type="range"
+        className="w-full accent-teal-500"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={onCommit}
+        onKeyUp={onCommit}
+      />
+    </div>
+  )
+}
+
+const PotProps = observer(({ part }: { part: PotentiometerPart }) => {
+  const push = () => part.circuit.project.pushSnapshotToHistory()
+  return (
+    <Section title="Potentiometer Properties">
+      <Row label="Resistance">
+        <UnitInput
+          value={part.kohm}
+          stringify={(v) => `${v.toFixed(2)}kohm`}
+          parse={(s) => {
+            const { value, unit } = ohmParser.parse(s)
+            return unit === 'ohm' ? value / 1000 : value
+          }}
+          onChange={(v) => {
+            part.setKohm(v)
+            push()
+          }}
+        />
+      </Row>
+      <RangeRow
+        label="Position"
+        value={part.wiper}
+        min={0}
+        max={1}
+        step={0.01}
+        format={(v) => `${Math.round(v * 100)}%`}
+        onChange={(v) => part.setWiper(v)}
+        onCommit={push}
+      />
+    </Section>
+  )
+})
+
+const Tmp36Props = observer(({ part }: { part: Tmp36Part }) => (
+  <Section title="TMP36 Properties">
+    <RangeRow
+      label="Temperature"
+      value={part.temperature}
+      min={-40}
+      max={125}
+      step={0.5}
+      format={(c) => `${c.toFixed(1)}°C / ${((c * 9) / 5 + 32).toFixed(0)}°F`}
+      onChange={(v) => part.setTemperature(v)}
+      onCommit={() => part.circuit.project.pushSnapshotToHistory()}
+    />
+  </Section>
+))
+
 /** Per-type property panel (null for parts without one). */
 export const PartProperties = observer(function PartProperties({
   part,
@@ -418,5 +510,7 @@ export const PartProperties = observer(function PartProperties({
   if (part instanceof ArduinoUnoPart) return <ArduinoProps part={part} />
   if (part instanceof EightPinChipPart) return <ChipProps part={part} />
   if (part instanceof Lcd1602I2cPart) return <LcdI2cProps part={part} />
+  if (part instanceof PotentiometerPart) return <PotProps part={part} />
+  if (part instanceof Tmp36Part) return <Tmp36Props part={part} />
   return null
 })

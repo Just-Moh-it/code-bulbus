@@ -40,6 +40,16 @@ export const PALETTE: { label: string; stampType: string; img: string }[] = [
   { label: 'Battery', stampType: 'battery', img: '/parts/battery.webp' },
   { label: '16x2 LCD', stampType: 'lcd1602', img: '/parts/timer.webp' },
   {
+    label: 'Potentiometer',
+    stampType: 'potentiometer',
+    img: '/parts/switch.webp',
+  },
+  {
+    label: 'TMP36 Temp Sensor',
+    stampType: 'tmp36',
+    img: '/parts/bjt-transistor.webp',
+  },
+  {
     label: '16x2 LCD (I2C)',
     stampType: 'lcd1602-i2c',
     img: '/parts/timer.webp',

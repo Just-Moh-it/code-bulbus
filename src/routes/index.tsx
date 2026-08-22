@@ -95,6 +95,26 @@ function Home() {
                     </div>
                   </div>
                 </button>
+                <button
+                  type="button"
+                  className="aspect-[16/12] text-left"
+                  onClick={() =>
+                    void navigate({
+                      to: '/projects/$id',
+                      params: { id: crypto.randomUUID() },
+                      search: { template: 'thermostat' },
+                    })
+                  }
+                >
+                  <div className="flex size-full items-center justify-center rounded-xl border border-border bg-white">
+                    <div className="flex flex-col items-center gap-2">
+                      <span>Thermostat demo</span>
+                      <span className="text-xs text-muted-foreground">
+                        TMP36 · pot · 16x2 LCD
+                      </span>
+                    </div>
+                  </div>
+                </button>
               </div>
             </section>
             <section className="flex flex-col gap-6">

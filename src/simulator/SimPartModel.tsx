@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as M from '#/editor/scene/models'
 import type {
   IntensityHandle,
+  KnobHandle,
   LcdHandle,
   SpeedHandle,
 } from '#/editor/scene/models'
@@ -16,6 +17,7 @@ import {
   Lcd1602I2c,
   Led,
   Motor,
+  Potentiometer,
   Resistor,
   TactileSwitch,
 } from '#/sim'
@@ -72,6 +74,12 @@ function LcdView({ part, i2c }: { part: Lcd1602 | Lcd1602I2c; i2c: boolean }) {
   return <M.Lcd1602Model ref={ref} i2c={i2c} />
 }
 
+function PotView({ part }: { part: Potentiometer }) {
+  const ref = useRef<KnobHandle>(null)
+  useClock(part, () => ref.current?.setPosition(part.wiper))
+  return <M.PotentiometerModel ref={ref} position0={part.wiper} />
+}
+
 /** Simulator-side model view: live values drive emissives / rotation / the switch cap. */
 export function SimPartModel({ part }: { part: Part }) {
   if (part instanceof Led) return <LedView part={part} />
@@ -85,6 +93,7 @@ export function SimPartModel({ part }: { part: Part }) {
     return <M.EightPinChipModel name={part.chipName} />
   if (part instanceof Lcd1602) return <LcdView part={part} i2c={false} />
   if (part instanceof Lcd1602I2c) return <LcdView part={part} i2c />
+  if (part instanceof Potentiometer) return <PotView part={part} />
   const Model = stampModels[part.type]
   return <Model />
 }

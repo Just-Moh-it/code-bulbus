@@ -20,6 +20,8 @@ export const PartType = {
   EightPinChip: '8-pin-chip',
   Lcd1602: 'lcd1602',
   Lcd1602I2c: 'lcd1602-i2c',
+  Potentiometer: 'potentiometer',
+  Tmp36: 'tmp36',
 } as const
 export type PartType = (typeof PartType)[keyof typeof PartType]
 
@@ -76,6 +78,8 @@ export interface PartJSON {
   subcktCode?: string // 8-pin chip body of .subckt
   chipName?: string // 8-pin chip
   i2cAddress?: number // I²C LCD backpack (0x27 / 0x3F)
+  wiper?: number // potentiometer wiper 0..1
+  temperature?: number // TMP36 ambient °C
   hexFile?: string // arduino
   files?: Record<
     string,

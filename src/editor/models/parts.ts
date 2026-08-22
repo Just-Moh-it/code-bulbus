@@ -439,6 +439,67 @@ export class Lcd1602I2cPart extends EditorPart {
   }
 }
 
+export class PotentiometerPart extends EditorPart {
+  static type = PartType.Potentiometer
+  static dimensions = defs.potentiometerDimensions
+  static eligibleParents = BB
+  declare kohm: number
+  declare wiper: number
+  protected init(j: EditorPartInit) {
+    this.kohm = j.kohm ?? 10
+    this.wiper = j.wiper ?? 0.5
+    makeObservable(this, {
+      kohm: true,
+      wiper: true,
+      setKohm: action,
+      setWiper: action,
+    })
+    super.init(j)
+  }
+  setKohm(v: number) {
+    this.kohm = v
+  }
+  setWiper(p: number) {
+    this.wiper = Math.min(1, Math.max(0, p))
+  }
+  get terminalDefinitions() {
+    return defs.potentiometerTerminals
+  }
+  loadJSON(j: PartJSON) {
+    super.loadJSON(j)
+    this.kohm = j.kohm ?? 10
+    this.wiper = j.wiper ?? 0.5
+  }
+  toJSON() {
+    return { ...super.toJSON(), kohm: this.kohm, wiper: this.wiper }
+  }
+}
+
+export class Tmp36Part extends EditorPart {
+  static type = PartType.Tmp36
+  static dimensions = defs.tmp36Dimensions
+  static eligibleParents = BB
+  declare temperature: number
+  protected init(j: EditorPartInit) {
+    this.temperature = j.temperature ?? 25
+    makeObservable(this, { temperature: true, setTemperature: action })
+    super.init(j)
+  }
+  setTemperature(c: number) {
+    this.temperature = c
+  }
+  get terminalDefinitions() {
+    return defs.tmp36Terminals
+  }
+  loadJSON(j: PartJSON) {
+    super.loadJSON(j)
+    this.temperature = j.temperature ?? 25
+  }
+  toJSON() {
+    return { ...super.toJSON(), temperature: this.temperature }
+  }
+}
+
 // ------------------------------------------------------------------ registry
 export type PartManager = new (j: EditorPartInit) => EditorPart
 
@@ -459,6 +520,8 @@ export const partManagers: Record<PartTypeT, PartManager> = {
   [PartType.EightPinChip]: EightPinChipPart,
   [PartType.Lcd1602]: Lcd1602Part,
   [PartType.Lcd1602I2c]: Lcd1602I2cPart,
+  [PartType.Potentiometer]: PotentiometerPart,
+  [PartType.Tmp36]: Tmp36Part,
 }
 
 export function getPartModule(

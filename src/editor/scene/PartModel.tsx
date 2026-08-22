@@ -8,6 +8,7 @@ import {
   CapacitorPart,
   EightPinChipPart,
   LedPart,
+  PotentiometerPart,
   ResistorPart,
   TactileSwitchPart,
 } from '#/editor/models'
@@ -32,6 +33,8 @@ export const stampModels: Record<PartTypeT, ComponentType> = {
   [PartType.EightPinChip]: M.EightPinChipModel,
   [PartType.Lcd1602]: M.Lcd1602Model,
   [PartType.Lcd1602I2c]: Lcd1602I2cStamp,
+  [PartType.Potentiometer]: M.PotentiometerModel,
+  [PartType.Tmp36]: M.Tmp36Model,
 }
 
 function Lcd1602I2cStamp() {
@@ -53,6 +56,8 @@ export const EditorPartModel = observer(function EditorPartModel({
   if (part instanceof EightPinChipPart)
     return <M.EightPinChipModel name={part.chipName} />
   if (part instanceof TactileSwitchPart) return <M.TactileSwitchModel />
+  if (part instanceof PotentiometerPart)
+    return <M.PotentiometerModel position0={part.wiper} />
   if (part instanceof ArduinoUnoPart) return <M.ArduinoUnoModel />
   const Model = stampModels[part.type]
   return <Model />

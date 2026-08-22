@@ -5,7 +5,7 @@ import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
-import { EditorProject } from '#/editor/models'
+import { ArduinoUnoPart, EditorProject } from '#/editor/models'
 import { ProjectCanvas } from '#/editor/scene/ProjectCanvas'
 import { PartContextMenu } from '#/components/editor/ContextMenu'
 import { EditorNavbar } from '#/components/editor/Navbar'
@@ -14,6 +14,8 @@ import { AgentsPanel } from '#/components/agents/AgentsPanel'
 import { Simulator } from '#/simulator/model'
 import { SimCanvas } from '#/simulator/SimCanvas'
 import { debounce, defaultProject } from '#/lib/projects'
+import { thermostatProject } from '#/lib/thermostat'
+import { compileArduino } from '#/lib/compile-client'
 import { preloadSpice } from '#/sim'
 import type { ProjectJSON } from '#/sim/types'
 
@@ -49,6 +51,7 @@ function ProjectPage() {
     const version = (row as { agentVersion?: number } | null)?.agentVersion ?? 0
     if (!json) {
       if (row) setJson(row as ProjectJSON)
+      else if (template === 'thermostat') setJson(thermostatProject(id))
       else if (template) setJson(defaultProject(id))
       seenVersion.current = version
       return
@@ -68,6 +71,14 @@ function ProjectPage() {
   useEffect(() => {
     preloadSpice()
   }, [])
+
+  // template projects ship with source but no hex: compile once on first load
+  useEffect(() => {
+    if (!project || row) return
+    project.circuit.parts.forEach((p) => {
+      if (p instanceof ArduinoUnoPart && !p.hexFile) void compileArduino(p)
+    })
+  }, [project])
 
   // autosave: any observable change → debounced upsert (2s), like the reference
   const save = useRef(

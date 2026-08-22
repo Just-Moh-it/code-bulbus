@@ -8,11 +8,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '#/components/ui/tooltip'
-import { PartProperties, Row, Section } from './Properties'
+import { PartProperties, RangeRow, Row, Section } from './Properties'
 import { PALETTE, PART_LABELS } from '#/lib/projects'
 import type { EditorPart, EditorProject, StampType } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
-import { ArduinoUno } from '#/sim'
+import { ArduinoUno, Potentiometer, Tmp36 } from '#/sim'
 
 const PANEL = 'hidden h-full min-h-0 w-64 shrink-0 flex-col bg-white md:flex'
 
@@ -334,6 +334,45 @@ const ArduinoLogs = observer(function ArduinoLogs({
   )
 })
 
+/** Live knobs while a simulation runs: the engine reads these on the next window. */
+function SimLiveControls({ part }: { part: Potentiometer | Tmp36 }) {
+  const [, bump] = useState(0)
+  const refresh = () => bump((n) => n + 1)
+  if (part instanceof Potentiometer)
+    return (
+      <Section title="Potentiometer">
+        <RangeRow
+          label="Position"
+          value={part.wiper}
+          min={0}
+          max={1}
+          step={0.01}
+          format={(v) => `${Math.round(v * 100)}%`}
+          onChange={(v) => {
+            part.setWiper(v)
+            refresh()
+          }}
+        />
+      </Section>
+    )
+  return (
+    <Section title="TMP36">
+      <RangeRow
+        label="Ambient"
+        value={part.temperature}
+        min={-40}
+        max={125}
+        step={0.5}
+        format={(c) => `${c.toFixed(1)}°C / ${((c * 9) / 5 + 32).toFixed(0)}°F`}
+        onChange={(v) => {
+          part.setTemperature(v)
+          refresh()
+        }}
+      />
+    </Section>
+  )
+}
+
 /** Simulator left panel: scene camera, or the selected part's camera + readouts with a Back button. */
 export const SimLeftPanel = observer(function SimLeftPanel({
   simulator,
@@ -359,6 +398,9 @@ export const SimLeftPanel = observer(function SimLeftPanel({
             multiple={false}
           />
           {part instanceof ArduinoUno && <ArduinoLogs part={part} />}
+          {(part instanceof Potentiometer || part instanceof Tmp36) && (
+            <SimLiveControls part={part} />
+          )}
         </div>
       ) : (
         <CameraSection target={simulator} multiple />
