@@ -9,6 +9,13 @@ import { Breadboard } from './parts/breadboard'
 import { Led } from './parts/led'
 import { Resistor } from './parts/resistor'
 import { WireEnd } from './parts/wire-end'
+import { TactileSwitch } from './parts/tactile-switch'
+import { NpnTransistor, PnpTransistor } from './parts/transistor'
+import { Capacitor } from './parts/capacitor'
+import { Timer } from './parts/timer'
+import { EightPinChip } from './parts/eight-pin-chip'
+import { Motor } from './parts/motor'
+import { RaspberryPi } from './parts/raspberry-pi'
 import { PartType } from './types'
 import type {
   CircuitJSON,
@@ -20,13 +27,21 @@ import type {
 type PartCtor = new (init: PartInit) => Part
 
 /** Part type → simulator class. Extend as more parts are ported. */
-export const partRegistry: Partial<Record<PartTypeT, PartCtor>> = {
+export const partRegistry: Record<PartTypeT, PartCtor> = {
   [PartType.Breadboard]: Breadboard,
   [PartType.Battery]: Battery,
   [PartType.Resistor]: Resistor,
   [PartType.Led]: Led,
   [PartType.WireEnd]: WireEnd,
   [PartType.ArduinoUno]: ArduinoUno,
+  [PartType.TactileSwitch]: TactileSwitch,
+  [PartType.NpnTransistor]: NpnTransistor,
+  [PartType.PnpTransistor]: PnpTransistor,
+  [PartType.Capacitor]: Capacitor,
+  [PartType.Timer]: Timer,
+  [PartType.EightPinChip]: EightPinChip,
+  [PartType.Motor]: Motor,
+  [PartType.RaspberryPi]: RaspberryPi,
 }
 
 /** Order part ids so that every parent precedes its children. */

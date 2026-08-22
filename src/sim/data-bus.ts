@@ -47,12 +47,17 @@ export class DataBus {
     if (!timeVar) throw new Error('spice result has no time variable')
     const times = timeVar.data
     const offset = this.latestTime
+    // series that first appear this window are front-padded so every series
+    // stays index-aligned with `times` (the reference only padded disappearing ones)
+    const lead = this.times.length
 
     for (const t of times) this.times.push(1e3 * t + offset)
     this.times = this.times.slice(-limit)
 
     for (const name in volts) {
-      this.voltages[name] = (this.voltages[name] ?? [])
+      this.voltages[name] = (
+        this.voltages[name] ?? Array<undefined>(lead).fill(undefined)
+      )
         .concat(volts[name].data)
         .slice(-limit)
     }
@@ -64,7 +69,9 @@ export class DataBus {
           .slice(-limit)
     }
     for (const name in amps) {
-      this.amperages[name] = (this.amperages[name] ?? [])
+      this.amperages[name] = (
+        this.amperages[name] ?? Array<undefined>(lead).fill(undefined)
+      )
         .concat(amps[name].data)
         .slice(-limit)
     }

@@ -68,6 +68,11 @@ export interface PartJSON {
   kohm?: number // resistor
   color?: string // led
   latching?: boolean // tactile switch
+  model?: string // transistor model e.g. 2N2222 / 2N3906
+  capacitance?: string | number // capacitor, SPICE value e.g. '10u'
+  pinLabels?: Record<string, string> // 8-pin chip
+  subcktCode?: string // 8-pin chip body of .subckt
+  chipName?: string // 8-pin chip
   hexFile?: string // arduino
   files?: Record<
     string,

@@ -13,7 +13,8 @@
     "lint": "eslint",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
-    "smoke": "bun scripts/smoke.ts"
+    "smoke": "bun scripts/smoke.ts",
+    "parity": "bun scripts/parity.ts"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",

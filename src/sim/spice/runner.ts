@@ -9,6 +9,7 @@ import type { SpiceFailure, SpiceResult } from '../types'
 let engine: Simulation | null = null
 let ready: Promise<Simulation> | null = null
 let queue: Promise<unknown> = Promise.resolve()
+let errorCursor = 0
 
 export const spiceDebug = { enabled: false }
 
@@ -64,8 +65,11 @@ export function runNetlist(netlist: string): Promise<SpiceResult> {
     sim.setNetList(text)
     const result = await sim.runSim()
     const t2 = performance.now()
-    // Match the reference: only stderr lines starting with Error/Warning count.
-    const stderr = sim.getError().map((l) => l.trim())
+    // eecircuit-engine accumulates stderr across runs; only look at this run's lines.
+    // Match the reference: only lines starting with Error/Warning count.
+    const all = sim.getError()
+    const stderr = all.slice(errorCursor).map((l) => l.trim())
+    errorCursor = all.length
     const errors = stderr.filter((l) => l.startsWith('Error'))
     const warnings = stderr.filter((l) => l.startsWith('Warning'))
     if (errors.length > 0 || !result.data || result.data.length === 0) {

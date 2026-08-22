@@ -256,3 +256,228 @@ export const wireEndTerminals: TerminalDefinition[] = [
     position: { x: 0, y: 0, z: 0 },
   },
 ]
+
+// ------------------------------------------------------------ Tactile switch
+export const tactileSwitchDimensions: Dimensions = {
+  width: 0.5892600207589567,
+  height: 0.689501644590497,
+  depth: 0.8645757313124836,
+}
+const ts = tactileSwitchDimensions
+/** Pins 1+2 are one pole, 3+4 the other; pressing bridges the two groups. */
+export const tactileSwitchTerminals: TerminalDefinition[] = [
+  {
+    surface: 'bottom',
+    type: 'male-pin',
+    name: '1',
+    label: '1',
+    group: '1',
+    position: { x: 0.425 * ts.width, y: -0.05 * ts.height, z: 0.44 * ts.depth },
+  },
+  {
+    surface: 'bottom',
+    type: 'male-pin',
+    name: '2',
+    label: '2',
+    group: '1',
+    position: {
+      x: 0.425 * ts.width,
+      y: -0.05 * ts.height,
+      z: -0.44 * ts.depth,
+    },
+  },
+  {
+    surface: 'bottom',
+    type: 'male-pin',
+    name: '3',
+    label: '3',
+    group: '2',
+    position: {
+      x: -0.425 * ts.width,
+      y: -0.05 * ts.height,
+      z: 0.44 * ts.depth,
+    },
+  },
+  {
+    surface: 'bottom',
+    type: 'male-pin',
+    name: '4',
+    label: '4',
+    group: '2',
+    position: {
+      x: -0.425 * ts.width,
+      y: -0.05 * ts.height,
+      z: -0.44 * ts.depth,
+    },
+  },
+]
+
+// ---------------------------------------------------------------- Transistor
+export const transistorDimensions: Dimensions = {
+  width: 0.5793953704833985,
+  height: 2.220976333618164,
+  depth: 0.39350032806396484,
+}
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+function bjtTerminals(order: [string, string, string]): TerminalDefinition[] {
+  const t = transistorDimensions
+  const xs = [0.425, -0.01, -0.445]
+  return order.map((name, i) => ({
+    surface: 'bottom',
+    type: 'male-pin',
+    name,
+    label: capitalize(name),
+    position: { x: xs[i] * t.width, y: -0.2 * t.height, z: -0.08 * t.depth },
+  }))
+}
+export const npnTerminals = (_model: string) =>
+  bjtTerminals(['collector', 'base', 'emitter'])
+export const pnpTerminals = (model: string) =>
+  bjtTerminals(
+    model === '2N3906'
+      ? ['emitter', 'base', 'collector']
+      : ['collector', 'base', 'emitter'],
+  )
+
+// ----------------------------------------------------------------- Capacitor
+export const capacitorDimensions: Dimensions = {
+  width: 0.5199999734759331,
+  height: 2.589092849195004,
+  depth: 0.5199999734759331,
+}
+export const capacitorTerminals: TerminalDefinition[] = [
+  {
+    surface: 'bottom',
+    type: 'male-pin',
+    name: 'cathode',
+    label: 'Cathode (-)',
+    position: {
+      x: 0,
+      y: -0.22 * capacitorDimensions.height,
+      z: 0.24 * capacitorDimensions.depth,
+    },
+  },
+  {
+    surface: 'bottom',
+    type: 'male-pin',
+    name: 'anode',
+    label: 'Anode (+)',
+    position: {
+      x: 0,
+      y: -0.29 * capacitorDimensions.height,
+      z: -0.24 * capacitorDimensions.depth,
+    },
+  },
+]
+
+// ------------------------------------------------------------- DIP-8 (shared)
+export const dip8Dimensions: Dimensions = {
+  width: 0.9119251584634185,
+  height: 0.6445517071988434,
+  depth: 0.7855555743955076,
+}
+function dip8(
+  names: [string, string, string, string, string, string, string, string],
+  labels?: string[],
+): TerminalDefinition[] {
+  const d = dip8Dimensions
+  const x0 = 0.415 * d.width
+  const z0 = -0.485 * d.depth
+  const y = -0.33 * d.height
+  return names.map((name, i) => {
+    const col = i < 4 ? i : 7 - i
+    const row = i < 4 ? 0 : 3
+    return {
+      surface: 'bottom',
+      type: 'male-pin',
+      name,
+      label: labels?.[i] ?? name,
+      position: { x: x0 - col * mg, y, z: z0 + row * mg },
+    }
+  })
+}
+export const timerDimensions = dip8Dimensions
+export const timerTerminals = dip8(
+  [
+    'ground',
+    'trigger',
+    'output',
+    'reset',
+    'vcc',
+    'discharge',
+    'threshold',
+    'control',
+  ],
+  [
+    'Ground',
+    'Trigger',
+    'Output',
+    'Reset',
+    'VCC',
+    'Discharge',
+    'Threshold',
+    'Control',
+  ],
+)
+export const eightPinChipDimensions = dip8Dimensions
+export const eightPinChipTerminals = dip8([
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+])
+
+// --------------------------------------------------------------------- Motor
+export const motorDimensions: Dimensions = {
+  width: 1.6650000000000005,
+  height: 4.370831680297852,
+  depth: 2.305565146923066,
+}
+export const motorTerminals: TerminalDefinition[] = [
+  {
+    surface: 'top',
+    type: 'male-pin',
+    name: 't1',
+    label: '1',
+    position: {
+      x: -0.077 * motorDimensions.width,
+      y: 0.2 * motorDimensions.height,
+      z: -0.36 * motorDimensions.depth,
+    },
+  },
+  {
+    surface: 'top',
+    type: 'male-pin',
+    name: 't2',
+    label: '2',
+    position: {
+      x: 0.077 * motorDimensions.width,
+      y: 0.2 * motorDimensions.height,
+      z: -0.36 * motorDimensions.depth,
+    },
+  },
+]
+
+// -------------------------------------------------------------- Raspberry Pi
+export const raspberryPiDimensions: Dimensions = {
+  width: 8.361735089111335,
+  height: 1.2130783743739824,
+  depth: 5.66987138143165,
+}
+export const raspberryPiTerminals: TerminalDefinition[] = (() => {
+  const r = raspberryPiDimensions
+  const x0 = -(0.411 * r.width)
+  const z0 = -(0.408 * r.depth)
+  const row = (prefix: string, z: number) =>
+    Array.from({ length: 20 }, (_, i): TerminalDefinition => ({
+      surface: 'top',
+      type: 'male-pin',
+      name: `${prefix}.${i}`,
+      position: { x: x0 + i * mg, y: 0.55 * r.height, z },
+    }))
+  return [...row('0', z0), ...row('1', z0 - mg)]
+})()

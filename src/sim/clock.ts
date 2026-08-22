@@ -145,7 +145,8 @@ export class Sampler<T = number> {
 
   /** Rescale recorded times so the last sample lands on `duration`. */
   resampled(duration: number) {
-    const scale = duration / this.times[this.times.length - 1]
+    const last = this.times[this.times.length - 1]
+    const scale = last > 0 ? duration / last : 1
     return this.times.map((t) => t * scale)
   }
 }
