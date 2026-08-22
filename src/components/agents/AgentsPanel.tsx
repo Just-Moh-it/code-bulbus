@@ -24,22 +24,41 @@ function agentsClient() {
   return client
 }
 
-/** Observe a source and hand back its live DB; null until connected. */
-function useObservation<T>(make: () => Promise<T>, deps: unknown[]) {
+interface StreamHandle {
+  preload?: () => Promise<void>
+  close?: () => void
+}
+
+/**
+ * Observe a source and hand back its live DB; null until loaded.
+ * StreamDBs are lazy: `preload()` opens the stream and loads the initial
+ * snapshot, `close()` stops the long-poll when the component goes away.
+ */
+function useObservation<T extends StreamHandle>(
+  make: () => Promise<T>,
+  deps: unknown[],
+) {
   const [db, setDb] = useState<T | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
+    let opened: T | null = null
     setDb(null)
     setError(null)
     make()
-      .then((d) => alive && setDb(d))
+      .then(async (d) => {
+        opened = d
+        await d.preload?.()
+        if (alive) setDb(d)
+        else d.close?.()
+      })
       .catch(
         (e: unknown) =>
           alive && setError(e instanceof Error ? e.message : String(e)),
       )
     return () => {
       alive = false
+      opened?.close?.()
     }
     // deps are the caller's identity keys (e.g. entityUrl); `make` is recreated per render on purpose
   }, deps)
