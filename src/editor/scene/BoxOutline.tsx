@@ -69,7 +69,7 @@ export function boxEdges(box: THREE.Box3): THREE.Vector3[] {
 }
 
 interface Props {
-  /** The fitted model group to outline; measured in its own frame once it has geometry. */
+  /** Group that contains the fitted model; the outline is drawn as its child, so it is measured in that same frame. */
   target: React.RefObject<THREE.Object3D | null>
   hovered: boolean
   selected: boolean

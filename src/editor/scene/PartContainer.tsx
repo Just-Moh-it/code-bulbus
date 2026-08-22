@@ -185,7 +185,7 @@ export const PartContainer = observer(function PartContainer({
   const scene = useThree((s) => s.scene)
   const [container, setContainer] = useState<THREE.Group | null>(null)
   const [hovered, setHovered] = useState(false)
-  const modelRef = useRef<THREE.Group>(null)
+  const boxGroup = useRef<THREE.Group>(null)
   // while the pointer drives the part, the scene mirrors the model immediately;
   // the spring is only for programmatic moves (snap, rotate, undo)
   const dragging = useRef(false)
@@ -268,7 +268,10 @@ export const PartContainer = observer(function PartContainer({
     [part],
   )
   const selectionRef = useCallback(
-    (o: THREE.Object3D | null) => part.setSelectionBox(o),
+    (o: THREE.Group | null) => {
+      boxGroup.current = o
+      part.setSelectionBox(o)
+    },
     [part],
   )
 
@@ -309,7 +312,6 @@ export const PartContainer = observer(function PartContainer({
         <group ref={selectionRef}>
           <Suspense fallback={null}>
             <ScaledGroup
-              ref={modelRef}
               position-y={dims.height / 2}
               dimensions={dims}
               fitKey={part.type}
@@ -318,7 +320,7 @@ export const PartContainer = observer(function PartContainer({
             </ScaledGroup>
           </Suspense>
           <BoxOutline
-            target={modelRef}
+            target={boxGroup}
             hovered={hovered}
             selected={project.selection === part}
           />
