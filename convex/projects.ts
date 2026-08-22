@@ -74,6 +74,8 @@ export const upsert = mutation({
     circuit: v.any(),
     /** Set by agent tools only. */
     agentVersion: v.optional(v.number()),
+    /** Sent by editors: the agentVersion they last adopted. A newer stored version wins. */
+    baseAgentVersion: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -81,6 +83,12 @@ export const upsert = mutation({
       .withIndex('by_public_id', (q) => q.eq('id', args.id))
       .unique()
     if (existing) {
+      if (
+        args.baseAgentVersion !== undefined &&
+        (existing.agentVersion ?? 0) > args.baseAgentVersion
+      ) {
+        return { ...rowToJSON(existing), conflict: true }
+      }
       await ctx.db.patch(existing._id, {
         name: args.name,
         user_id: args.user_id ?? existing.user_id ?? null,

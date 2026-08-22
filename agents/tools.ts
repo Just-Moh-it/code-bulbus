@@ -24,6 +24,8 @@ import { partManagers } from '#/editor/models'
 import type { EditorPart } from '#/editor/models'
 import { compileSketch } from '#/server/compile'
 import { PALETTE, defaultProject } from '#/lib/projects'
+import { LED_COLORS, WIRE_COLORS } from '#/editor/models'
+import { mg } from '#/sim/types'
 import { ArduinoUno, Battery, Circuit, Led, Motor, Resistor } from '#/sim'
 
 const CONVEX_URL = process.env.VITE_CONVEX_URL
@@ -123,22 +125,76 @@ function describePart(p: PartJSON) {
 }
 
 /**
- * Place `part` on `parent` so that its connected bottom terminal sits on the
- * parent's terminal (rotation 0). Mirrors what dragging + snapping produces.
+ * Place `part` on `parent` so its first requested terminal sits exactly on the
+ * named parent hole (rotation honoured), then resolve EVERY bottom terminal's
+ * connection from geometry — the same 0.33·mg rule the editor uses — so the
+ * stored connections can never disagree with where the legs physically are.
+ * Throws if a requested hole is not where that leg lands.
  */
 function placeOnParent(part: PartJSON, parent: PartJSON) {
+  const requested = Object.fromEntries(
+    part.terminals.map((t) => [t.name, t.connections[0]]),
+  )
   const first = part.terminals[0]
   if (!first?.connections[0]) return
-  const own = terminalDefs(part).find((d) => d.name === first.name)
-  const target = terminalDefs(parent).find(
-    (d) => d.name === first.connections[0],
-  )
-  if (!own || !target)
-    throw new Error(`Unknown terminal ${first.name} / ${first.connections[0]}`)
+  const own = terminalDefs(part)
+  const parentTerms = terminalDefs(parent)
+  const anchor = own.find((d) => d.name === first.name)
+  const target = parentTerms.find((d) => d.name === first.connections[0])
+  if (!anchor) throw new Error(`${part.type} has no terminal "${first.name}"`)
+  if (!target)
+    throw new Error(`${parent.type} has no terminal "${first.connections[0]}"`)
+  const rot = part.rotation
+  const local = (d: TerminalDefinition) => ({
+    x: d.position.x * Math.cos(rot) + d.position.z * Math.sin(rot),
+    z: -d.position.x * Math.sin(rot) + d.position.z * Math.cos(rot),
+  })
+  const a = local(anchor)
   part.position = {
-    x: target.position.x - own.position.x,
+    x: target.position.x - a.x,
     y: dragSurfaceHeight(parent.type),
-    z: target.position.z - own.position.z,
+    z: target.position.z - a.z,
+  }
+  const landed: Record<string, string | null> = {}
+  part.terminals = own
+    .filter((d) => d.surface === 'bottom')
+    .map((d) => {
+      const l = local(d)
+      const x = part.position.x + l.x
+      const z = part.position.z + l.z
+      const hit = parentTerms.find(
+        (t) => Math.hypot(t.position.x - x, t.position.z - z) < 0.33 * mg,
+      )
+      landed[d.name] = hit?.name ?? null
+      return { name: d.name, connections: hit ? [hit.name] : [] }
+    })
+  for (const [name, want] of Object.entries(requested)) {
+    if (want && landed[name] !== want) {
+      throw new Error(
+        `Terminal "${name}" cannot reach ${want}: with "${first.name}" on ${first.connections[0]} it lands on ${landed[name] ?? 'no hole'}. ` +
+          `Legs are fixed distances apart (LED/resistor legs are adjacent columns); pick matching holes or rotate the part.`,
+      )
+    }
+  }
+}
+
+const LED_COLOR_VALUES: string[] = LED_COLORS.map((c) => c.value)
+const WIRE_COLOR_VALUES: string[] = WIRE_COLORS.map((c) => c.value)
+
+/** Reject property values the editor would not accept. */
+function validateProperties(type: PartTypeT, props: Record<string, unknown>) {
+  if (
+    type === 'led' &&
+    'color' in props &&
+    !LED_COLOR_VALUES.includes(String(props.color))
+  ) {
+    throw new Error(
+      `LED color must be one of ${LED_COLOR_VALUES.join(', ')} (got ${String(props.color)})`,
+    )
+  }
+  for (const k of ['kohm', 'voltage', 'capacitance']) {
+    if (k in props && typeof props[k] !== 'number')
+      throw new Error(`${k} must be a number`)
   }
 }
 
@@ -265,6 +321,7 @@ export const addPart = tool({
     properties,
   }) => {
     if (!isPartType(type)) throw new Error(`Unknown part type ${type}`)
+    validateProperties(type, properties ?? {})
     const project = await loadProject(projectId)
     const circuit = project.circuit
     const part: PartJSON = {
@@ -310,6 +367,7 @@ export const updatePart = tool({
     const project = await loadProject(projectId)
     const part = project.circuit.parts.find((p) => p.id === partId)
     if (!part) throw new Error(`Part ${partId} not found`)
+    validateProperties(part.type, properties ?? {})
     Object.assign(part, properties ?? {})
     if (rotation !== undefined) part.rotation = rotation
     if (connections) {
@@ -395,6 +453,10 @@ export const addWire = tool({
     const a = end(from)
     const b = end(to)
     c.parts.push(a, b)
+    if (color && !WIRE_COLOR_VALUES.includes(color))
+      throw new Error(
+        `Wire color must be one of ${WIRE_COLOR_VALUES.join(', ')}`,
+      )
     const wire = {
       id: crypto.randomUUID(),
       color: color ?? 'Crimson',

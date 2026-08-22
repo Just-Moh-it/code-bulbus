@@ -22,6 +22,8 @@ export class EditorProject {
   featured: boolean | undefined
   circuit: EditorCircuit
   history: History<ProjectJSON>
+  /** Fired after a user edit (history push) or a camera change — the only times the project should be persisted. */
+  private saveListeners = new Set<() => void>()
   observable: {
     name: string
     stampType: StampType | null
@@ -108,23 +110,37 @@ export class EditorProject {
     this.observable.camera.target = v
   }
 
+  onSave(fn: () => void) {
+    this.saveListeners.add(fn)
+    return () => {
+      this.saveListeners.delete(fn)
+    }
+  }
+  private emitSave() {
+    this.saveListeners.forEach((l) => l())
+  }
+
   updateCameraState() {
     const o = this.orbit
     if (!o) return
     this.observable.camera.position = o.object.position.clone()
     this.observable.camera.target = o.target.clone()
+    this.emitSave()
   }
 
   pushSnapshotToHistory() {
     this.history.push(this.toJSON())
     this.observable.hasChanges = true
+    this.emitSave()
   }
 
   undo() {
     this.history.undo()
+    this.emitSave()
   }
   redo() {
     this.history.redo()
+    this.emitSave()
   }
 
   fitCamera() {

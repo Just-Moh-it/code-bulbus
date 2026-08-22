@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
-import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
@@ -80,9 +79,11 @@ function ProjectPage() {
     })
   }, [project])
 
-  // autosave: any observable change → debounced upsert (2s), like the reference
+  // Persist only on user edits (history pushes, camera moves) — never on load,
+  // otherwise a freshly adopted agent write would be echoed back over later ones.
+  // `baseAgentVersion` lets the server refuse a stale client; we then adopt the row.
   const save = useRef(
-    debounce((j: ProjectJSON) => {
+    debounce((j: ProjectJSON, base: number) => {
       void upsert({
         id: j.id,
         name: j.name,
@@ -90,13 +91,21 @@ function ProjectPage() {
         parent_id: j.parent_id ?? null,
         camera: j.camera,
         circuit: j.circuit,
+        baseAgentVersion: base,
+      }).then((res) => {
+        const r = res as { conflict?: boolean; agentVersion?: number } | null
+        if (r?.conflict && r.agentVersion !== undefined) {
+          seenVersion.current = r.agentVersion
+          setJson(r as unknown as ProjectJSON)
+        }
       })
     }, 2000),
   )
   useEffect(() => {
     if (!project) return
-    const dispose = autorun(() => save.current(project.toJSON()))
-    return dispose
+    return project.onSave(() =>
+      save.current(project.toJSON(), seenVersion.current ?? 0),
+    )
   }, [project])
 
   useEffect(() => {
