@@ -20,12 +20,14 @@ const ELECTRIC_AGENTS_URL =
   process.env.ELECTRIC_AGENTS_URL ?? 'http://localhost:4437'
 const PORT = Number(process.env.AGENTS_APP_PORT ?? 4440)
 const SERVE_URL = process.env.AGENTS_SERVE_URL ?? `http://localhost:${PORT}`
-const MODEL = process.env.AGENTS_MODEL ?? 'claude-sonnet-4-6'
+const MODEL = process.env.AGENTS_MODEL ?? 'gpt-5.1'
+/** pi-ai provider id; models are looked up within it. */
+const PROVIDER = (process.env.AGENTS_PROVIDER ?? 'openai') as
+  'openai' | 'anthropic'
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.warn(
-    'ANTHROPIC_API_KEY is not set — agent runs will fail until it is.',
-  )
+const keyVar = PROVIDER === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY'
+if (!process.env[keyVar]) {
+  console.warn(`${keyVar} is not set — agent runs will fail until it is.`)
 }
 
 export const ENTITY_TYPE = 'bulbus'
@@ -50,6 +52,7 @@ registry.define(ENTITY_TYPE, {
     ctx.useAgent({
       systemPrompt: `${SYSTEM_PROMPT}\n\nThe user is working on project id: ${projectId || '(unknown — ask or use list_projects)'}.`,
       model: MODEL,
+      provider: PROVIDER,
       tools: [...ctx.electricTools, ...bulbusTools],
     })
     await ctx.agent.run()
@@ -79,6 +82,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, async () => {
   await runtime.registerTypes()
   console.log(
-    `bulbus agent server on ${SERVE_URL} (coordinator ${ELECTRIC_AGENTS_URL}, model ${MODEL})`,
+    `bulbus agent server on ${SERVE_URL} (coordinator ${ELECTRIC_AGENTS_URL}, ${PROVIDER}/${MODEL})`,
   )
 })
