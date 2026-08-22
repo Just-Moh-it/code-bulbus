@@ -45,6 +45,21 @@ JSON every run and never shares objects with the editor. Keep it that way.
 - Netlist device ids: `v_` sources, `r_` resistors/wires, `d_` LEDs, `q_` BJTs,
   `C_` caps, `x_` subcircuits. `DataBus` looks currents up as `i(@id[i])`.
 
+## Foundation rules (derive, don't sync)
+
+- **The model is the single source of truth for transforms.** `EditorPart.worldTransform`
+  composes position/rotation through the parent chain; wires, snapping and anything
+  else that must agree with the model read *that*, never a three.js object. The scene
+  graph only mirrors the model (immediately while dragging, spring-animated for
+  programmatic moves), so it can never be "between" states that other views depend on.
+- **three.js objects never live in models.** The engine (`src/sim`) has no scene
+  fields. Views register objects in an observable registry (`Simulator.objects`,
+  keyed by `objectKey(part)`), and visibility/camera logic derives from that map,
+  so a late-mounting ref can never leave something permanently hidden.
+- **Visibility comes from observable state only.** If a component decides
+  `visible` at render time from a plain field that is set later, it will be
+  wrong forever (that was the "wires vanish in simulation" bug).
+
 ## Invariants that have bitten us
 
 1. **GLB node names.** three's GLTFLoader names a single-primitive mesh after its
