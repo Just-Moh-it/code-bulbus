@@ -41,7 +41,7 @@
     "@tanstack/ai-ollama": "latest",
     "@tanstack/ai-openai": "latest",
     "@tanstack/ai-react": "latest",
-    "@tanstack/react-db": "^0.3.2",
+    "@tanstack/react-db": "^0.1.85",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-router": "latest",
     "@tanstack/react-router-devtools": "latest",
