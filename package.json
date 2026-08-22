@@ -14,7 +14,8 @@
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "smoke": "bun scripts/smoke.ts",
-    "parity": "bun scripts/parity.ts"
+    "parity": "bun scripts/parity.ts",
+    "test": "bun test src"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
@@ -71,6 +72,7 @@
     "@tanstack/devtools-vite": "latest",
     "@tanstack/eslint-config": "latest",
     "@tanstack/router-cli": "^1.132.0",
+    "@types/bun": "^1.4.0",
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

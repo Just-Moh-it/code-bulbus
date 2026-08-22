@@ -1,76 +1,46 @@
 import { memo, useLayoutEffect, useRef, useState } from 'react'
 import type { ComponentProps } from 'react'
-import * as THREE from 'three'
+import type * as THREE from 'three'
+import { localBox, scaleToFit } from './fit'
 import type { Dimensions } from '#/sim/types'
 
-export function measure(obj: THREE.Object3D): Dimensions {
-  const b = new THREE.Box3().setFromObject(obj)
-  return {
-    width: b.max.x - b.min.x,
-    height: b.max.y - b.min.y,
-    depth: b.max.z - b.min.z,
-  }
+type Props = ComponentProps<'group'> & {
+  dimensions: Dimensions
+  /** Cache key for the computed scale — every instance of a part type shares one fit. */
+  fitKey: string
 }
 
-/** Scale `object` so its bounding box matches `dimensions` exactly. */
-export function fitToDimensions(
-  object: THREE.Object3D,
-  dimensions: Dimensions,
-) {
-  const e = measure(object)
-  // an empty/unloaded model measures 0 — leave it unscaled rather than producing Infinity/NaN
-  if (!(e.width > 0 && e.height > 0 && e.depth > 0)) return object.scale.clone()
-  const s = new THREE.Vector3(
-    (dimensions.width / e.width) * object.scale.x,
-    (dimensions.height / e.height) * object.scale.y,
-    (dimensions.depth / e.depth) * object.scale.z,
-  )
-  object.scale.copy(s)
-  return s
-}
-
-type Props = ComponentProps<'group'> & { dimensions: Dimensions }
+/** Scale per `fitKey`, computed once from the first instance that has geometry. */
+const fitCache = new Map<string, THREE.Vector3>()
 
 /**
- * Wraps a GLB model and scales it so its bounding box equals the part's
- * canonical `dimensions`. The fit runs once the children have real geometry;
- * until then it retries each frame (models load asynchronously), and it
- * re-runs whenever `dimensions` change.
+ * Scales a GLB model so its local bounding box equals the part's canonical
+ * `dimensions`. The measurement is rotation-invariant and excludes labels
+ * (see `fit.ts`), and is cached per part type, so it is deterministic.
+ * Mount it below a `<Suspense>` so the model has resolved by the time it renders.
  */
 export const ScaledGroup = memo(function ScaledGroup({
   dimensions,
+  fitKey,
   children,
   ...rest
 }: Props) {
   const ref = useRef<THREE.Group>(null)
-  const [scale, setScale] = useState(() => new THREE.Vector3(1, 1, 1))
-  const key = JSON.stringify(dimensions)
+  const [scale, setScale] = useState(() => fitCache.get(fitKey) ?? null)
 
   useLayoutEffect(() => {
+    if (scale) return
     const g = ref.current
     if (!g) return
-    let raf = 0
-    const attempt = () => {
-      const current = ref.current
-      if (!current) return
-      // measure at unit scale so a previous fit doesn't skew the box
-      current.scale.set(1, 1, 1)
-      current.updateWorldMatrix(true, true)
-      const e = measure(current)
-      if (e.width > 0 && e.height > 0 && e.depth > 0) {
-        const s = fitToDimensions(current, dimensions).clone()
-        current.userData.scaledTo = key
-        setScale(s)
-      } else {
-        raf = requestAnimationFrame(attempt)
-      }
-    }
-    if (g.userData.scaledTo !== key) attempt()
-    return () => cancelAnimationFrame(raf)
-  }, [key, dimensions])
+    const box = localBox(g)
+    const s = box && scaleToFit(box, dimensions)
+    if (!s) return // nothing with geometry yet; the model's Suspense will re-render us
+    fitCache.set(fitKey, s)
+    setScale(s)
+  })
 
   return (
-    <group {...rest} scale={scale} ref={ref}>
+    <group {...rest} scale={scale ?? undefined} visible={!!scale} ref={ref}>
       {children}
     </group>
   )

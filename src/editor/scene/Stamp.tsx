@@ -132,7 +132,11 @@ export function PartStamp({ partType, offset, onAdd, children }: StampProps) {
   return (
     <group ref={ghost} position={pos}>
       <Suspense fallback={null}>
-        <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
+        <ScaledGroup
+          position-y={dims.height / 2}
+          dimensions={dims}
+          fitKey={partType.type}
+        >
           {children}
         </ScaledGroup>
       </Suspense>

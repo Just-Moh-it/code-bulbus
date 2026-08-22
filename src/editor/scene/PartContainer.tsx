@@ -294,7 +294,11 @@ export const PartContainer = observer(function PartContainer({
       <group ref={objectRef}>
         <group ref={selectionRef}>
           <Suspense fallback={null}>
-            <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
+            <ScaledGroup
+              position-y={dims.height / 2}
+              dimensions={dims}
+              fitKey={part.type}
+            >
               {children}
             </ScaledGroup>
           </Suspense>

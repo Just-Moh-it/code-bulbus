@@ -192,7 +192,11 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
       >
         <group ref={boxRef}>
           <Suspense fallback={null}>
-            <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
+            <ScaledGroup
+              position-y={dims.height / 2}
+              dimensions={dims}
+              fitKey={part.type}
+            >
               <SimPartModel part={part} />
             </ScaledGroup>
           </Suspense>
