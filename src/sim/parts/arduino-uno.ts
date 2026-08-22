@@ -6,6 +6,8 @@ import { arduinoUnoDimensions, arduinoUnoTerminals } from '../defs'
 import { ArduinoRunner } from '../avr/runner'
 import { PartType } from '../types'
 
+const MAX_PWL_POINTS = 8
+
 /** Records (time, voltage) points for a pin between sim windows. */
 class PinSampler {
   times: number[] = []
@@ -50,12 +52,23 @@ export class ArduinoTerminal extends Terminal {
     this.simulatorPin?.setInput(voltage)
   }
 
-  /** A piecewise-linear voltage source reproducing this pin's output over the window. */
+  /**
+   * A piecewise-linear voltage source reproducing this pin's output over the window.
+   * ngspice steps at 16.67 ms, so it cannot resolve faster toggling (LCD strobes,
+   * bit-banged buses) — every extra breakpoint only forces tiny timesteps and stalls
+   * the main thread. Keep at most MAX_PWL_POINTS evenly spaced samples (always the last).
+   */
   get voltageSrc() {
-    if (this.sampler.samples.length === 0) return ''
-    const points = this.sampler.times.map(
-      (t, i) => `(${t}ms ${this.sampler.samples[i] ?? 0})`,
-    )
+    const { times, samples } = this.sampler
+    if (samples.length === 0) return ''
+    const idx: number[] = []
+    if (times.length <= MAX_PWL_POINTS) {
+      for (let i = 0; i < times.length; i++) idx.push(i)
+    } else {
+      for (let k = 0; k < MAX_PWL_POINTS; k++)
+        idx.push(Math.round((k * (times.length - 1)) / (MAX_PWL_POINTS - 1)))
+    }
+    const points = idx.map((i) => `(${times[i]}ms ${samples[i] ?? 0})`)
     return `v_${this.id} ${this.node} ${this.part.terminalsByName['gnd.1'].node} DC PWL (${points.join(' ')})`
   }
 }
