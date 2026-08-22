@@ -11,7 +11,6 @@ import type {
   ObservationStreamDB,
 } from '@electric-ax/agents-runtime/client'
 import { useChat } from '@electric-ax/agents-runtime/react'
-import { useLiveQuery } from '@tanstack/react-db'
 import { Bot, Plus, Send } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Textarea } from '#/components/ui/textarea'
@@ -71,15 +70,18 @@ function AgentList({
       ) as Promise<ObservationStreamDB>,
     [projectId],
   )
-  const members = (db?.collections as { members?: unknown } | undefined)
-    ?.members
-  const { data } = useLiveQuery(
-    (q) => (members ? q.from({ m: members as never }) : null),
-    [members],
-  )
-  const rows = ((data ?? []) as { m?: MemberRow }[])
-    .map((r) => r.m ?? (r as unknown as MemberRow))
-    .filter(Boolean)
+  // the membership collection is a runtime proxy (`toArray`), not a TanStack
+  // Collection, so it can't feed useLiveQuery; sample it at a modest cadence
+  const [rows, setRows] = useState<MemberRow[]>([])
+  useEffect(() => {
+    if (!db) return
+    const members = (db.collections as { members?: { toArray: MemberRow[] } })
+      .members
+    const read = () => setRows(members ? [...members.toArray] : [])
+    read()
+    const t = setInterval(read, 500)
+    return () => clearInterval(t)
+  }, [db])
   rows.sort((a, b) => a.created_at - b.created_at)
 
   if (error)
