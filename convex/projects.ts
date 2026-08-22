@@ -11,6 +11,7 @@ const rowToJSON = (r: {
   camera?: unknown
   circuit: unknown
   preview?: string
+  agentVersion?: number
 }) => ({
   id: r.id,
   name: r.name,
@@ -21,6 +22,7 @@ const rowToJSON = (r: {
   camera: r.camera,
   circuit: r.circuit,
   preview: r.preview ?? null,
+  agentVersion: r.agentVersion ?? 0,
 })
 
 export const getById = query({
@@ -70,6 +72,8 @@ export const upsert = mutation({
     parent_id: v.optional(v.union(v.string(), v.null())),
     camera: v.optional(v.any()),
     circuit: v.any(),
+    /** Set by agent tools only. */
+    agentVersion: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -83,6 +87,9 @@ export const upsert = mutation({
         parent_id: args.parent_id ?? existing.parent_id ?? null,
         camera: args.camera,
         circuit: args.circuit,
+        ...(args.agentVersion !== undefined
+          ? { agentVersion: args.agentVersion }
+          : {}),
       })
       return rowToJSON({ ...existing, ...args })
     }
@@ -95,6 +102,7 @@ export const upsert = mutation({
       created_at: new Date().toISOString(),
       camera: args.camera,
       circuit: args.circuit,
+      agentVersion: args.agentVersion ?? 0,
     }
     await ctx.db.insert('projects', row)
     return rowToJSON(row)

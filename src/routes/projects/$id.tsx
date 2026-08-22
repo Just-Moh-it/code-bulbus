@@ -10,6 +10,7 @@ import { ProjectCanvas } from '#/editor/scene/ProjectCanvas'
 import { PartContextMenu } from '#/components/editor/ContextMenu'
 import { EditorNavbar } from '#/components/editor/Navbar'
 import { EditorLeftPanel, SimLeftPanel } from '#/components/editor/Panels'
+import { AgentsPanel } from '#/components/agents/AgentsPanel'
 import { Simulator } from '#/simulator/model'
 import { SimCanvas } from '#/simulator/SimCanvas'
 import { debounce, defaultProject } from '#/lib/projects'
@@ -41,10 +42,25 @@ function ProjectPage() {
   useEffect(() => {
     setJson(null)
   }, [id])
+  // Agents edit projects server-side and bump `agentVersion`; adopt their version when it changes.
+  const seenVersion = useRef<number | null>(null)
   useEffect(() => {
-    if (json || row === undefined) return
-    if (row) setJson(row as ProjectJSON)
-    else if (template) setJson(defaultProject(id))
+    if (row === undefined) return
+    const version = (row as { agentVersion?: number } | null)?.agentVersion ?? 0
+    if (!json) {
+      if (row) setJson(row as ProjectJSON)
+      else if (template) setJson(defaultProject(id))
+      seenVersion.current = version
+      return
+    }
+    if (
+      row &&
+      seenVersion.current !== null &&
+      version !== seenVersion.current
+    ) {
+      seenVersion.current = version
+      setJson(row as ProjectJSON)
+    }
   }, [row, template, id, json])
   const project = useMemo(() => (json ? new EditorProject(json) : null), [json])
   const jsonStr = useMemo(() => JSON.stringify(json), [json])
@@ -149,6 +165,7 @@ function ProjectPage() {
                 </>
               )}
             </div>
+            <AgentsPanel projectId={id} />
           </>
         )}
       </main>

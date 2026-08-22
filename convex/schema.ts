@@ -13,6 +13,8 @@ export default defineSchema({
     camera: v.optional(v.any()),
     circuit: v.any(),
     preview: v.optional(v.id('_storage')),
+    /** Bumped by agent tools; the editor reloads the project when it changes. */
+    agentVersion: v.optional(v.number()),
   })
     .index('by_public_id', ['id'])
     .index('by_user', ['user_id'])
