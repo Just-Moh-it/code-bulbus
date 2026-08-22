@@ -90,6 +90,8 @@ export class Circuit {
   readonly partsById: Record<string, Part> = {}
   readonly wiresById: Record<string, Wire> = {}
   simDuration = 50
+  /** Run the MCU synchronously (headless scripts/tests); the browser runs it async. */
+  syncMcu = false
   readonly data = new DataBus()
   readonly errors = new Set<string>()
   readonly warnings = new Set<string>()
@@ -98,6 +100,8 @@ export class Circuit {
   running = false
   simCount = 0
   totalSimTime = 0
+  /** Wall-clock cost of the last window, for the perf readout. */
+  stats = { spice: 0, mcu: 0, window: 0 }
   events: CircuitEvents
 
   constructor(json: CircuitJSON, events: CircuitEvents = {}) {
@@ -217,14 +221,19 @@ export class Circuit {
     if (circuitDebug.enabled) console.log(netlist)
     this.onSimulate()
     try {
+      const ts = performance.now()
       const result = await runNetlist(netlist)
+      this.stats.spice = performance.now() - ts
       await pace
       if (this.running) {
         this.data.append(result)
         this.totalSimTime += performance.now() - t0
         this.simCount += 1
         this.clock.setRate(this.idealClockRate)
+        const ta = performance.now()
         await this.afterSimulate()
+        this.stats.mcu = performance.now() - ta
+        this.stats.window = performance.now() - t0
         this.events.onWindow?.(this)
       }
     } catch (e) {

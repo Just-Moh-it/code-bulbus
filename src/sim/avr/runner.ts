@@ -21,6 +21,22 @@ import { I2CBus } from '../devices/i2c'
 
 export const AVR_CLOCK_HZ = 16e6
 
+/**
+ * Yield a macrotask so the browser can paint between MCU bursts. `setTimeout(0)`
+ * is clamped to ~4 ms after a few nested timers; a MessageChannel round-trip is
+ * near-instant, so we cede a frame without throttling throughput. Falls back to
+ * setTimeout where MessageChannel is absent (Node/tests never hit this path).
+ */
+const yieldToEventLoop: () => Promise<void> =
+  typeof MessageChannel !== 'undefined'
+    ? () =>
+        new Promise<void>((resolve) => {
+          const ch = new MessageChannel()
+          ch.port1.onmessage = () => resolve()
+          ch.port2.postMessage(0)
+        })
+    : () => new Promise<void>((r) => setTimeout(r, 0))
+
 /** Parse an Intel HEX string into program memory. */
 export function loadHex(source: string, target: Uint8Array) {
   for (const line of source.split('\n')) {
@@ -242,7 +258,7 @@ export class ArduinoRunner {
     this.usart.onByteTransmit = (b) => this.byteListeners.forEach((l) => l(b))
   }
 
-  /** Execute `ms` milliseconds of MCU time. */
+  /** Execute `ms` milliseconds of MCU time (synchronous — headless/tests). */
   runFor(ms: number) {
     const cyclesAtStart = this.cpu.cycles
     const cyclesToRun = (AVR_CLOCK_HZ * ms) / 1e3
@@ -252,6 +268,33 @@ export class ArduinoRunner {
     while (this.cpu.cycles <= target) {
       avrInstruction(this.cpu)
       this.cpu.tick()
+    }
+    this.pins.forEach((p) => p.onRunEnd(info))
+  }
+
+  /**
+   * Same as `runFor`, but yields to the event loop whenever a synchronous burst
+   * exceeds `budgetMs` so the browser can paint. avr8js emulates the MCU well
+   * below real time (~2–5 M cycles/s in a dev build), so a 50 ms window can be
+   * hundreds of ms of work; without yielding it freezes the tab. PWM averaging
+   * still spans the whole `ms` (onRunStart/onRunEnd bracket the entire run).
+   */
+  async runForAsync(ms: number, budgetMs = 8) {
+    const cyclesAtStart = this.cpu.cycles
+    const cyclesToRun = (AVR_CLOCK_HZ * ms) / 1e3
+    const target = cyclesAtStart + cyclesToRun
+    const info = { cyclesAtStart, cyclesToRun }
+    this.pins.forEach((p) => p.onRunStart(info))
+    let mark = performance.now()
+    let n = 0
+    while (this.cpu.cycles <= target) {
+      avrInstruction(this.cpu)
+      this.cpu.tick()
+      // check the clock only every ~4k instructions (perf.now is not free)
+      if ((n++ & 0xfff) === 0 && performance.now() - mark > budgetMs) {
+        await yieldToEventLoop()
+        mark = performance.now()
+      }
     }
     this.pins.forEach((p) => p.onRunEnd(info))
   }

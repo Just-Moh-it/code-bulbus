@@ -143,6 +143,7 @@ async function main() {
     onError: (m) => console.error('spice error:', m),
     onWarning: (m) => console.warn('spice warning:', m),
   })
+  circuit.syncMcu = true
   const uno = circuit.partsById[ids.uno] as ArduinoUno
   const led = circuit.partsById[ids.led] as Led
 

@@ -69,6 +69,7 @@ async function run(
     onError: (m) => console.log('   spice error:', m),
     onWarning: (m) => console.log('   spice warning:', m),
   })
+  circuit.syncMcu = true
   let i = 0
   circuit.events.onWindow = (c) => {
     i++
