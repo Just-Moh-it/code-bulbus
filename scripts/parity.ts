@@ -14,11 +14,11 @@ import type {
   Motor,
   PartJSON,
   TactileSwitch,
+  Tmp36,
   WireJSON,
 } from '#/sim'
 import { compileSketch } from '#/server/compile'
 import { THERMOSTAT_SKETCH, thermostatProject } from '#/lib/thermostat'
-import type { Tmp36 } from '#/sim'
 
 const keepalive = setInterval(() => {}, 1000)
 const o = { x: 0, y: 0, z: 0 }
