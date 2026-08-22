@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "lint": "eslint",
     "format": "prettier --write . && eslint --fix",
-    "check": "prettier --check ."
+    "check": "prettier --check .",
+    "smoke": "bun scripts/smoke.ts"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
@@ -36,10 +37,12 @@
     "@tanstack/react-start": "latest",
     "@tanstack/react-store": "latest",
     "@tanstack/store": "latest",
+    "avr8js": "^0.21.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
     "convex": "^1.32.0",
+    "eecircuit-engine": "^1.7.0",
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.577.0",
     "mobx": "^7.0.3",

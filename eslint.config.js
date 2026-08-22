@@ -12,9 +12,16 @@ export default [
       '@typescript-eslint/array-type': 'off',
       '@typescript-eslint/require-await': 'off',
       'pnpm/json-enforce-catalog': 'off',
+      // Record<string, T> lookups are typed non-nullable; runtime guards are still wanted.
+      '@typescript-eslint/no-unnecessary-condition': 'off',
     },
   },
   {
-    ignores: ['eslint.config.js', 'prettier.config.js', 'convex/_generated/**', '.output/**'],
+    ignores: [
+      'eslint.config.js',
+      'prettier.config.js',
+      'convex/_generated/**',
+      '.output/**',
+    ],
   },
 ]
