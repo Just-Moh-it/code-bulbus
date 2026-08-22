@@ -1,7 +1,12 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
-/** Mirrors withdiode's `projects` row: id/name/user_id/parent_id/camera/circuit (+featured, created_at). */
+/**
+ * Projects are metadata; the circuit lives as one row per part / wire so
+ * browsers and agents can edit different entities without clobbering each
+ * other (last writer wins per entity). `projects.circuit` is the legacy blob:
+ * read once when a project has no rows yet, never written again.
+ */
 export default defineSchema({
   projects: defineTable({
     id: v.string(),
@@ -11,12 +16,24 @@ export default defineSchema({
     featured: v.optional(v.boolean()),
     created_at: v.string(),
     camera: v.optional(v.any()),
-    circuit: v.any(),
+    /** Legacy whole-circuit blob; see module comment. */
+    circuit: v.optional(v.any()),
     preview: v.optional(v.id('_storage')),
-    /** Bumped by agent tools; the editor reloads the project when it changes. */
     agentVersion: v.optional(v.number()),
   })
     .index('by_public_id', ['id'])
     .index('by_user', ['user_id'])
     .index('by_featured', ['featured']),
+  parts: defineTable({
+    projectId: v.string(),
+    id: v.string(),
+    /** PartJSON */
+    data: v.any(),
+  }).index('by_project_id', ['projectId', 'id']),
+  wires: defineTable({
+    projectId: v.string(),
+    id: v.string(),
+    /** WireJSON */
+    data: v.any(),
+  }).index('by_project_id', ['projectId', 'id']),
 })

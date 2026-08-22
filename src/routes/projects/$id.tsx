@@ -13,7 +13,8 @@ import { EditorLeftPanel, SimLeftPanel } from '#/components/editor/Panels'
 import { AgentsPanel } from '#/components/agents/AgentsPanel'
 import { Simulator } from '#/simulator/model'
 import { SimCanvas } from '#/simulator/SimCanvas'
-import { debounce, defaultProject } from '#/lib/projects'
+import { defaultProject } from '#/lib/projects'
+import { useProjectSync } from '#/editor/sync/useProjectSync'
 import { thermostatProject } from '#/lib/thermostat'
 import { compileArduino } from '#/lib/compile-client'
 import { preloadSpice } from '#/sim'
@@ -32,92 +33,55 @@ const CANVAS_BG = '#F9FAFC'
 function ProjectPage() {
   const { id } = Route.useParams()
   const { template } = Route.useSearch()
-  const row = useQuery(api.projects.getById, { id })
-  const upsert = useMutation(api.projects.upsert)
+  const server = useQuery(api.circuit.get, { projectId: id })
+  const create = useMutation(api.projects.create)
   const remove = useMutation(api.projects.remove)
   const navigate = useNavigate()
   const [simulator, setSimulator] = useState<Simulator | null>(null)
 
-  // Take the row once per id: Convex is reactive, so our own autosave would otherwise
-  // rebuild the editor on every write. (Reference: react-query with a 10 min staleTime.)
+  // The model is built once per id from the first server snapshot; every later
+  // snapshot is reconciled into it by useProjectSync (never rebuilt).
   const [json, setJson] = useState<ProjectJSON | null>(null)
   useEffect(() => {
     setJson(null)
   }, [id])
-  // Agents edit projects server-side and bump `agentVersion`; adopt their version when it changes.
-  const seenVersion = useRef<number | null>(null)
   useEffect(() => {
-    if (row === undefined) return
-    const version = (row as { agentVersion?: number } | null)?.agentVersion ?? 0
-    if (!json) {
-      if (row) setJson(row as ProjectJSON)
-      else if (template === 'thermostat') setJson(thermostatProject(id))
-      else if (template) {
-        // brand-new project: persist the template now (later saves follow user edits only)
-        const fresh = defaultProject(id)
-        setJson(fresh)
-        void upsert({
-          id: fresh.id,
-          name: fresh.name,
-          user_id: null,
-          parent_id: null,
-          circuit: fresh.circuit,
-        })
-      }
-      seenVersion.current = version
+    if (server === undefined || json) return
+    if (server) {
+      setJson({ ...server.project, circuit: server.circuit })
       return
     }
-    if (
-      row &&
-      seenVersion.current !== null &&
-      version !== seenVersion.current
-    ) {
-      seenVersion.current = version
-      setJson(row as ProjectJSON)
-    }
-  }, [row, template, id, json])
+    if (!template) return
+    const fresh =
+      template === 'thermostat' ? thermostatProject(id) : defaultProject(id)
+    void create({
+      id,
+      name: fresh.name,
+      user_id: null,
+      parent_id: null,
+      parts: fresh.circuit.parts,
+      wires: fresh.circuit.wires,
+    })
+  }, [server, template, id, json, create])
   const project = useMemo(() => (json ? new EditorProject(json) : null), [json])
-  const jsonStr = useMemo(() => JSON.stringify(json), [json])
+  useProjectSync(project, server)
+  // dev aid: inspect the live model from the console
+  useEffect(() => {
+    if (import.meta.env.DEV)
+      (window as unknown as { project?: EditorProject | null }).project =
+        project
+  }, [project])
 
   useEffect(() => {
     preloadSpice()
   }, [])
 
-  // template projects ship with source but no hex: compile once on first load
+  // template projects ship with source but no hex: compile once
   useEffect(() => {
-    if (!project || row) return
+    if (!project) return
     project.circuit.parts.forEach((p) => {
       if (p instanceof ArduinoUnoPart && !p.hexFile) void compileArduino(p)
     })
-  }, [project])
-
-  // Persist only on user edits (history pushes, camera moves) — never on load,
-  // otherwise a freshly adopted agent write would be echoed back over later ones.
-  // `baseAgentVersion` lets the server refuse a stale client; we then adopt the row.
-  const save = useRef(
-    debounce((j: ProjectJSON, base: number) => {
-      void upsert({
-        id: j.id,
-        name: j.name,
-        user_id: j.user_id ?? null,
-        parent_id: j.parent_id ?? null,
-        camera: j.camera,
-        circuit: j.circuit,
-        baseAgentVersion: base,
-      }).then((res) => {
-        const r = res as { conflict?: boolean; agentVersion?: number } | null
-        if (r?.conflict && r.agentVersion !== undefined) {
-          seenVersion.current = r.agentVersion
-          setJson(r as unknown as ProjectJSON)
-        }
-      })
-    }, 2000),
-  )
-  useEffect(() => {
-    if (!project) return
-    return project.onSave(() =>
-      save.current(project.toJSON(), seenVersion.current ?? 0),
-    )
   }, [project])
 
   useEffect(() => {
@@ -142,13 +106,14 @@ function ProjectPage() {
     if (!project) return
     const j = project.toJSON()
     const newId = crypto.randomUUID()
-    await upsert({
+    await create({
       id: newId,
       name: `${j.name} (fork)`,
       user_id: j.user_id ?? null,
       parent_id: project.id,
       camera: j.camera,
-      circuit: j.circuit,
+      parts: j.circuit.parts,
+      wires: j.circuit.wires,
     })
     void navigate({ to: '/projects/$id', params: { id: newId } })
   }
@@ -192,7 +157,7 @@ function ProjectPage() {
             >
               {project && (
                 <>
-                  <ProjectCanvas key={jsonStr} project={project} />
+                  <ProjectCanvas project={project} />
                   <PartContextMenu project={project} />
                 </>
               )}

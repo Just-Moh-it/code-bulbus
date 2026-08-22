@@ -286,6 +286,7 @@ export const PartContainer = observer(function PartContainer({
         if (!e.nativeEvent.altKey && project.stampType === null)
           project.setSelection(part)
         dragging.current = true
+        project.held.add(part.id)
       }}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
@@ -295,6 +296,7 @@ export const PartContainer = observer(function PartContainer({
         // final settle goes through setPosition so snapping applies once more
         part.setPosition(part.position.clone())
         project.pushSnapshotToHistory()
+        project.held.delete(part.id)
       }}
       onContextMenu={(e) => {
         if (!e.nativeEvent.altKey) {

@@ -361,6 +361,9 @@ export abstract class EditorPart {
     this.circuit.parts
       .filter((p) => p.parent?.id === this.id)
       .forEach((p) => p.delete())
+    this.circuit.wires
+      .filter((w) => w.partOne === this || w.partTwo === this)
+      .forEach((w) => w.delete())
     delete this.circuit.data.partsById[this.id]
   }
 

@@ -75,6 +75,10 @@ export class EditorWire {
     this.observable.height = h
   }
 
+  delete() {
+    delete this.circuit.data.wiresById[this.id]
+  }
+
   loadJSON(j: WireJSON) {
     this.id = j.id
     this.partOne = this.circuit.getPartById(j.partOneId)

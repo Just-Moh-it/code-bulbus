@@ -5,6 +5,7 @@ import type { EditorPart } from './part'
 import type { EditorProject } from './project'
 import { getPartModule } from './parts'
 import { orderByParent } from '#/sim/circuit'
+import { stable } from '#/editor/sync/diff'
 import type { CircuitJSON, PartInput, PartJSON, WireJSON } from '#/sim/types'
 
 export interface ContextMenuState {
@@ -95,20 +96,41 @@ export class EditorCircuit {
     return this.data.wiresById[id]
   }
 
-  /** Reconcile with a snapshot (undo/redo): delete vanished parts, update or add the rest. */
-  loadJSON(j: CircuitJSON) {
-    const incoming = new Set(j.parts.map((p) => p.id))
-    this.parts.filter((p) => !incoming.has(p.id)).forEach((p) => p.delete())
+  /**
+   * Reconcile the model with a snapshot: remove entities that vanished, update
+   * the ones whose JSON differs, add the new ones. Ids in `skip` are left alone
+   * (the user is dragging them, or a local change is still in flight).
+   * Used by undo/redo and by server sync alike.
+   */
+  loadJSON(j: CircuitJSON, skip: ReadonlySet<string> = new Set()) {
+    const partIds = new Set(j.parts.map((p) => p.id))
+    const wireIds = new Set(j.wires.map((w) => w.id))
+    // wires first: a wire must never outlive its end parts
+    this.wires
+      .filter((w) => !wireIds.has(w.id) && !skip.has(w.id))
+      .forEach((w) => w.delete())
+    this.parts
+      .filter((p) => !partIds.has(p.id) && !skip.has(p.id))
+      .forEach((p) => p.delete())
     const byId = Object.fromEntries(j.parts.map((p) => [p.id, p]))
     for (const id of orderByParent(j.parts)) {
+      if (skip.has(id)) continue
       const existing = this.data.partsById[id]
-      if (existing) existing.loadJSON(byId[id])
-      else this.addPart(byId[id])
+      if (!existing) this.addPart(byId[id])
+      else if (stable(existing.toJSON()) !== stable(byId[id]))
+        existing.loadJSON(byId[id])
     }
     for (const w of j.wires) {
+      if (skip.has(w.id)) continue
       const existing = this.data.wiresById[w.id]
-      if (existing) existing.loadJSON(w)
-      else this.addWire(w)
+      if (existing) {
+        if (stable(existing.toJSON()) !== stable(w)) existing.loadJSON(w)
+      } else if (
+        this.data.partsById[w.partOneId] &&
+        this.data.partsById[w.partTwoId]
+      ) {
+        this.addWire(w)
+      }
     }
   }
 

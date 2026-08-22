@@ -1,5 +1,6 @@
 import { mutation, query } from './_generated/server'
 import { v } from 'convex/values'
+import { applyOps } from './circuit'
 
 const rowToJSON = (r: {
   id: string
@@ -9,9 +10,8 @@ const rowToJSON = (r: {
   featured?: boolean
   created_at: string
   camera?: unknown
-  circuit: unknown
+  circuit?: unknown
   preview?: string
-  agentVersion?: number
 }) => ({
   id: r.id,
   name: r.name,
@@ -22,7 +22,6 @@ const rowToJSON = (r: {
   camera: r.camera,
   circuit: r.circuit,
   preview: r.preview ?? null,
-  agentVersion: r.agentVersion ?? 0,
 })
 
 export const getById = query({
@@ -64,44 +63,24 @@ export const list = query({
   },
 })
 
-export const upsert = mutation({
+/** Create a project with its initial parts/wires (template, fork, agent). No-op if it exists. */
+export const create = mutation({
   args: {
     id: v.string(),
     name: v.string(),
     user_id: v.optional(v.union(v.string(), v.null())),
     parent_id: v.optional(v.union(v.string(), v.null())),
     camera: v.optional(v.any()),
-    circuit: v.any(),
-    /** Set by agent tools only. */
-    agentVersion: v.optional(v.number()),
-    /** Sent by editors: the agentVersion they last adopted. A newer stored version wins. */
-    baseAgentVersion: v.optional(v.number()),
+    parts: v.array(v.any()),
+    wires: v.array(v.any()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query('projects')
       .withIndex('by_public_id', (q) => q.eq('id', args.id))
       .unique()
-    if (existing) {
-      if (
-        args.baseAgentVersion !== undefined &&
-        (existing.agentVersion ?? 0) > args.baseAgentVersion
-      ) {
-        return { ...rowToJSON(existing), conflict: true }
-      }
-      await ctx.db.patch(existing._id, {
-        name: args.name,
-        user_id: args.user_id ?? existing.user_id ?? null,
-        parent_id: args.parent_id ?? existing.parent_id ?? null,
-        camera: args.camera,
-        circuit: args.circuit,
-        ...(args.agentVersion !== undefined
-          ? { agentVersion: args.agentVersion }
-          : {}),
-      })
-      return rowToJSON({ ...existing, ...args })
-    }
-    const row = {
+    if (existing) return false
+    await ctx.db.insert('projects', {
       id: args.id,
       name: args.name,
       user_id: args.user_id ?? null,
@@ -109,11 +88,30 @@ export const upsert = mutation({
       featured: false,
       created_at: new Date().toISOString(),
       camera: args.camera,
-      circuit: args.circuit,
-      agentVersion: args.agentVersion ?? 0,
-    }
-    await ctx.db.insert('projects', row)
-    return rowToJSON(row)
+    })
+    await applyOps(ctx, {
+      projectId: args.id,
+      parts: args.parts,
+      wires: args.wires,
+    })
+    return true
+  },
+})
+
+/** Project metadata (name, camera). Circuit edits go through `circuit.apply`. */
+export const update = mutation({
+  args: {
+    id: v.string(),
+    name: v.optional(v.string()),
+    camera: v.optional(v.any()),
+  },
+  handler: async (ctx, { id, ...patch }) => {
+    const existing = await ctx.db
+      .query('projects')
+      .withIndex('by_public_id', (q) => q.eq('id', id))
+      .unique()
+    if (!existing) return
+    await ctx.db.patch(existing._id, patch)
   },
 })
 
@@ -124,7 +122,15 @@ export const remove = mutation({
       .query('projects')
       .withIndex('by_public_id', (q) => q.eq('id', id))
       .unique()
-    if (existing) await ctx.db.delete(existing._id)
+    if (!existing) return
+    for (const table of ['parts', 'wires'] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex('by_project_id', (q) => q.eq('projectId', id))
+        .collect()
+      for (const r of rows) await ctx.db.delete(r._id)
+    }
+    await ctx.db.delete(existing._id)
   },
 })
 

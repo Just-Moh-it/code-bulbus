@@ -81,10 +81,12 @@ JSON every run and never shares objects with the editor. Keep it that way.
 5. **The TanStack devtools Vite plugin is banned.** It injects
    `data-tsd-source` into every JSX element and R3F throws on unknown props,
    which the error boundary retries forever.
-6. **Project JSON is taken once per id** (`routes/projects/$id.tsx`). Convex is
-   reactive; re-reading the row after our own autosave would rebuild the editor
-   on every keystroke. The reference had the same policy via react-query's
-   staleTime.
+6. **The editor model is built once per id and then synced, never rebuilt**
+   (`routes/projects/$id.tsx` + `editor/sync/useProjectSync.ts`). Convex holds
+   one row per part / wire; every snapshot after the first is reconciled into
+   the live MobX model, and every model change is diffed and flushed back
+   (≈150 ms). Rebuilding on each snapshot would remount the scene on every
+   keystroke — and on every agent edit.
 7. **The editor route is `ssr: false`.** The scene needs WebGL and the models
    need `window`; SSR produced an empty `EditorProject(null)`.
 8. **drei `Text` defaults `fontSize` to 1**; the reference ran on troika's 0.1.
@@ -105,6 +107,36 @@ Pipeline latency from a button press to a pin reacting is ~4 windows by design.
 `scripts/parity.ts` pins this behaviour; run subsets (`bun run parity 555 pwm`)
 to stay under 30 s.
 
+## Sync (Figma-style, `editor/sync/`)
+
+The 3D layer is derived from `EditorProject` (MobX); the server is kept in
+step by a small two-way sync rather than by save events:
+
+```
+Convex rows (parts, wires) ──useQuery──▶ circuit.loadJSON(snapshot, skip)      inbound
+EditorProject ──reaction──▶ diff(lastSent, now) ──▶ circuit.apply (≈150 ms)   outbound
+```
+
+- **Granularity is the entity.** `circuit.apply` upserts/removes whole parts
+  and wires; the last writer wins *per entity*, so a human and N agents editing
+  different parts never conflict. Same-entity races are resolved LWW — good
+  enough for always-online collaborators; the row-per-entity shape is what a
+  CRDT would need later anyway.
+- **`skip` protects local intent.** Inbound snapshots leave alone ids that are
+  `project.held` (being dragged) or dirty (local change not yet confirmed).
+  `lastSent` advances to the server's values for everything else, so our own
+  echo and other writers' changes are never sent back.
+- **Undo/redo is local.** It restores a snapshot into the model, which the
+  outbound diff turns into ops like any other edit. It will undo remote edits
+  too (snapshot history); per-author undo is a later change.
+- **Camera is per viewer** — persisted as project metadata (`projects.update`,
+  debounced) but never pushed into other clients' models.
+- `diffCircuit`/`stable` (`sync/diff.ts`) are pure and shared with the agent
+  tools; `reconcile.test.ts` pins the echo / held / add-remove / cascade cases.
+- Projects created before rows existed carry a `projects.circuit` blob;
+  `circuit.get` serves it with `legacy: true` and the first client to open it
+  writes the rows. The blob is never written again.
+
 ## Agents (Electric Agents)
 
 Each chat in the right-hand panel is one durable **Electric Agents** entity of
@@ -119,8 +151,10 @@ browser ──observe (read-only)──▶ coordinator :4437 ◀──webhook wa
 
 - `bun run agents:runtime` starts Postgres + Electric + the coordinator in Docker;
   `bun run agents:server` runs our entity server (needs `ANTHROPIC_API_KEY`).
-- Tools (`agents/tools.ts`) operate on project JSON via Convex HTTP and bump
-  `agentVersion`; the editor page adopts the new row when that changes. Every
+- Tools (`agents/tools.ts`) load the circuit through `circuit.get`, edit the
+  JSON, and save `diff(loaded, edited)` through `circuit.apply` — the same
+  entity-level ops the browser sends, so an open editor shows the change live
+  and a part the user is editing at the same time is never clobbered. Every
   tool call must go through `get_project` → edit → `simulate` so the agent
   verifies its own work with the real engine (headless `Circuit`).
 - Part placement by tools mirrors snapping: the part is positioned so its first

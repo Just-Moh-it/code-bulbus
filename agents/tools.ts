@@ -1,7 +1,8 @@
 /**
  * App-specific tools exposed to Electric Agents. Each tool talks to Convex
- * over HTTP (no auth yet — every project is editable) and bumps the project's
- * `agentVersion` so open editors reload.
+ * over HTTP (no auth yet — every project is editable). Edits are saved as
+ * entity-level ops (diff of loaded vs edited), so open editors pick them up
+ * live and concurrent edits to other parts are never clobbered.
  *
  * Tools return `{ content: [{ type: 'text', text }], details }` per the
  * AgentTool contract; throw on failure.
@@ -24,6 +25,7 @@ import { partManagers, LED_COLORS, WIRE_COLORS } from '#/editor/models'
 import type { EditorPart } from '#/editor/models'
 import { compileSketch } from '#/server/compile'
 import { PALETTE, defaultProject } from '#/lib/projects'
+import { diffCircuit, isEmptyOps } from '#/editor/sync/diff'
 import { ArduinoUno, Battery, Circuit, Led, Motor, Resistor } from '#/sim'
 
 const CONVEX_URL = process.env.VITE_CONVEX_URL
@@ -41,24 +43,28 @@ const text = (data: unknown) => ({
   details: {},
 })
 
+/** What the server held when a project was loaded; tools edit the JSON in place, so the diff needs this. */
+const baselines = new WeakMap<ProjectJSON, CircuitJSON>()
+
 async function loadProject(id: string): Promise<ProjectJSON> {
-  const row = (await convex.query(api.projects.getById, {
-    id,
-  })) as ProjectJSON | null
-  if (!row) throw new Error(`Project ${id} not found`)
-  return row
+  const snap = await convex.query(api.circuit.get, { projectId: id })
+  if (!snap) throw new Error(`Project ${id} not found`)
+  const project: ProjectJSON = {
+    ...snap.project,
+    camera: snap.project.camera as ProjectJSON['camera'],
+    circuit: snap.circuit,
+  }
+  baselines.set(project, structuredClone(project.circuit))
+  return project
 }
 
+/** Persist only what changed since `loadProject`. */
 async function saveCircuit(project: ProjectJSON, circuit: CircuitJSON) {
-  await convex.mutation(api.projects.upsert, {
-    id: project.id,
-    name: project.name,
-    user_id: project.user_id ?? null,
-    parent_id: project.parent_id ?? null,
-    camera: project.camera,
-    circuit,
-    agentVersion: Date.now(),
-  })
+  const base = baselines.get(project) ?? { parts: [], wires: [] }
+  const ops = diffCircuit(base, circuit)
+  if (isEmptyOps(ops)) return
+  await convex.mutation(api.circuit.apply, { projectId: project.id, ...ops })
+  baselines.set(project, structuredClone(circuit))
 }
 
 /** Terminal definitions per type; types without an entry here can't be placed by tools yet. */
@@ -409,14 +415,19 @@ export const updatePart = tool({
 
 export const removePart = tool({
   name: 'remove_part',
-  label: 'Remove part',
+  label: 'Remove part or wire',
   description:
-    'Remove a part (and anything parented to it, and wires attached to removed wire ends).',
+    'Remove a part or a wire by id (plus anything parented to it; removing a wire removes both of its ends).',
   parameters: Type.Object({ projectId: ProjectId, partId: Type.String() }),
   execute: async ({ projectId, partId }) => {
     const project = await loadProject(projectId)
     const c = project.circuit
-    const doomed = new Set<string>([partId])
+    const wire = c.wires.find((w) => w.id === partId)
+    if (!wire && !c.parts.some((p) => p.id === partId))
+      throw new Error(`No part or wire with id ${partId}`)
+    const doomed = new Set<string>(
+      wire ? [wire.partOneId, wire.partTwoId] : [partId],
+    )
     let grew = true
     while (grew) {
       grew = false
@@ -622,7 +633,14 @@ export const createProject = tool({
   execute: async ({ name }) => {
     const p = defaultProject(crypto.randomUUID())
     if (name) p.name = name
-    await saveCircuit(p, p.circuit)
+    await convex.mutation(api.projects.create, {
+      id: p.id,
+      name: p.name,
+      user_id: null,
+      parent_id: null,
+      parts: p.circuit.parts,
+      wires: p.circuit.wires,
+    })
     return { id: p.id, url: `/projects/${p.id}` }
   },
 })
