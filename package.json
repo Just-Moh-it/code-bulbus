@@ -94,5 +94,8 @@
       "esbuild",
       "lightningcss"
     ]
+  },
+  "overrides": {
+    "@tanstack/db": "0.6.17"
   }
 }
