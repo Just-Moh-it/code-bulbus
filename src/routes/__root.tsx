@@ -1,6 +1,4 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import ConvexProvider from '../integrations/convex/provider'
 import { Toaster } from 'sonner'
@@ -42,17 +40,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <ConvexProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster position="bottom-right" richColors />
-          <TanStackDevtools
-            config={{
-              position: 'bottom-right',
-            }}
-            plugins={[
-              {
-                name: 'Tanstack Router',
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-            ]}
-          />
         </ConvexProvider>
         <Scripts />
       </body>
