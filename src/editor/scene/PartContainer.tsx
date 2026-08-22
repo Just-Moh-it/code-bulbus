@@ -174,6 +174,9 @@ export const PartContainer = observer(function PartContainer({
   const project = useProject()
   const scene = useThree((s) => s.scene)
   const [container, setContainer] = useState<THREE.Group | null>(null)
+  // while the pointer drives the part, the scene mirrors the model immediately;
+  // the spring is only for programmatic moves (snap, rotate, undo)
+  const dragging = useRef(false)
 
   const [spring, api] = useSpring(() => ({
     'position-x': part.position.x,
@@ -201,12 +204,14 @@ export const PartContainer = observer(function PartContainer({
     part.rotation,
   ])
   useEffect(() => {
-    api.start({
+    const target = {
       'position-x': part.position.x,
       'position-y': part.position.y,
       'position-z': part.position.z,
       'rotation-y': part.rotation,
-    })
+    }
+    if (dragging.current) api.set(target)
+    else api.start(target)
   }, [api, part.position.x, part.position.y, part.position.z, part.rotation])
 
   // mount container under the parent's container (or the scene)
@@ -265,10 +270,13 @@ export const PartContainer = observer(function PartContainer({
       onPointerDown={(e) => {
         if (!e.nativeEvent.altKey && project.stampType === null)
           project.setSelection(part)
+        dragging.current = true
       }}
       onDrag={onDrag}
       onDragEnd={() => {
-        part.updateConnections()
+        dragging.current = false
+        // final settle goes through setPosition so snapping applies once more
+        part.setPosition(part.position.clone())
         project.pushSnapshotToHistory()
       }}
       onContextMenu={(e) => {

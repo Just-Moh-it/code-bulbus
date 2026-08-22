@@ -25,7 +25,11 @@ export function wireGeometry(
   return new THREE.TubeGeometry(wireCurve(a, b, height), 20, mg / 5)
 }
 
-/** Editor wire: tube between the two wire-end containers, rebuilt when either moves. */
+/**
+ * Editor wire: tube between the two wire-end *models*. Endpoints come from
+ * `EditorPart.worldPosition` (model-derived), so the tube always agrees with
+ * where the ends are, independent of scene-graph timing or animation.
+ */
 export const WireMesh = observer(function WireMesh({
   wire,
 }: {
@@ -35,15 +39,12 @@ export const WireMesh = observer(function WireMesh({
   const last = useRef<{ a: THREE.Vector3; b: THREE.Vector3; h: number } | null>(
     null,
   )
-  const visible = wire.partOne.isReady && wire.partTwo.isReady
 
   useFrame(() => {
-    const c1 = wire.partOne.container
-    const c2 = wire.partTwo.container
     const m = mesh.current
-    if (!c1 || !c2 || !m) return
-    const a = c1.getWorldPosition(new THREE.Vector3())
-    const b = c2.getWorldPosition(new THREE.Vector3())
+    if (!m) return
+    const a = wire.partOne.worldPosition
+    const b = wire.partTwo.worldPosition
     const h = wire.height
     const l = last.current
     if (!l || !l.a.equals(a) || !l.b.equals(b) || l.h !== h) {
@@ -54,7 +55,7 @@ export const WireMesh = observer(function WireMesh({
   })
 
   return (
-    <mesh ref={mesh} visible={visible}>
+    <mesh ref={mesh}>
       <meshStandardMaterial color={wire.color} side={THREE.DoubleSide} />
     </mesh>
   )

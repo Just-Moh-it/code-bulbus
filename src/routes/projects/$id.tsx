@@ -88,11 +88,11 @@ function ProjectPage() {
   const startSimulation = () => {
     if (!project) return
     const sim = new Simulator(project.toJSON())
-    void sim.circuit.start()
+    sim.start()
     setSimulator(sim)
   }
   const stopSimulation = () => {
-    simulator?.circuit.stop()
+    simulator?.stop()
     setSimulator(null)
   }
   const fork = async () => {

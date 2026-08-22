@@ -22,6 +22,7 @@ import { CANVAS_BG } from '#/editor/scene/ProjectCanvas'
 import { LABEL_STYLE, LABEL_WRAP_STYLE } from '#/editor/scene/PartContainer'
 import { wireGeometry } from '#/editor/scene/WireMesh'
 import { SimPartModel } from './SimPartModel'
+import { objectKey } from './model'
 import type { Simulator } from './model'
 import type { Part } from '#/sim/part'
 import type { Terminal } from '#/sim/terminal'
@@ -35,7 +36,46 @@ export function useSimulator() {
   return s
 }
 
-/** Live voltage readout for a terminal (gated by part.showVoltages while running). */
+/** World position of an engine part, derived from the model through the parent chain. */
+export function partWorldPosition(part: Part): THREE.Vector3 {
+  const local = new THREE.Vector3(
+    part.position.x,
+    part.position.y,
+    part.position.z,
+  )
+  if (!part.parent) return local
+  const { position, rotationY } = partWorldTransform(part.parent)
+  return position.add(
+    local.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationY),
+  )
+}
+function partWorldTransform(part: Part): {
+  position: THREE.Vector3
+  rotationY: number
+} {
+  if (!part.parent) {
+    return {
+      position: new THREE.Vector3(
+        part.position.x,
+        part.position.y,
+        part.position.z,
+      ),
+      rotationY: part.rotation,
+    }
+  }
+  const pt = partWorldTransform(part.parent)
+  const local = new THREE.Vector3(
+    part.position.x,
+    part.position.y,
+    part.position.z,
+  ).applyAxisAngle(new THREE.Vector3(0, 1, 0), pt.rotationY)
+  return {
+    position: pt.position.add(local),
+    rotationY: pt.rotationY + part.rotation,
+  }
+}
+
+/** Live voltage readout for a terminal (shown while running when the part has showVoltages). */
 const VoltageLabel = observer(function VoltageLabel({
   terminal,
 }: {
@@ -43,7 +83,7 @@ const VoltageLabel = observer(function VoltageLabel({
 }) {
   const sim = useSimulator()
   const p = useRef<HTMLParagraphElement>(null)
-  const show = terminal.part.showVoltages && sim.circuit.running
+  const show = terminal.part.showVoltages && sim.running
   useFrame(() => {
     if (p.current)
       p.current.innerText = `${(terminal.currentVoltage + 1e-6).toFixed(3)} V`
@@ -96,14 +136,16 @@ function ErrorMarker({ part }: { part: Part }) {
   )
 }
 
-/** Read-only part view: placed under its parent, selectable, shows voltage labels + errors. */
+/** Read-only part view: mounted under its parent's container, selectable, labels + errors. */
 const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
   const sim = useSimulator()
   const scene = useThree((s) => s.scene)
-  const [container, setContainer] = useState<THREE.Group | null>(null)
   const [, tick] = useState(0)
-  const parentObj = part.parent?.container ?? scene
 
+  // scene-graph parenting mirrors the model; both lookups are observable
+  const container = sim.objects.get(objectKey(part)) ?? null
+  const parentObj =
+    (part.parent && sim.objects.get(objectKey(part.parent))) ?? scene
   useLayoutEffect(() => {
     if (!container) return
     parentObj.add(container)
@@ -112,7 +154,7 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
     }
   }, [parentObj, container])
 
-  // re-render every 30 ticks so error markers appear
+  // rating errors are plain engine state; refresh every 30 ticks so markers appear
   useEffect(
     () =>
       part.circuit.clock.onChange(
@@ -122,32 +164,22 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
   )
 
   const containerRef = useCallback(
-    (o: THREE.Group | null) => {
-      setContainer(o)
-      part.container = o
-    },
-    [part],
+    (o: THREE.Group | null) => sim.setObject(objectKey(part), o),
+    [sim, part],
   )
   const objectRef = useCallback(
-    (o: THREE.Object3D | null) => {
-      part.object = o
-    },
-    [part],
+    (o: THREE.Object3D | null) => sim.setObject(objectKey(part, 'object'), o),
+    [sim, part],
   )
-  const selectionRef = useCallback(
-    (o: THREE.Object3D | null) => {
-      part.selectionBox = o
-    },
-    [part],
-  )
-  const ready = !!container && !(part.parent && !part.parent.container)
+  const boxRef = useRef<THREE.Group>(null)
+
   const dims = part.dimensions
   return (
     <group
       ref={containerRef}
       position={[part.position.x, part.position.y, part.position.z]}
       rotation-y={part.rotation}
-      visible={ready}
+      visible={sim.isReady(part)}
     >
       <group
         ref={objectRef}
@@ -158,7 +190,7 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
           }
         }}
       >
-        <group ref={selectionRef}>
+        <group ref={boxRef}>
           <Suspense fallback={null}>
             <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
               <SimPartModel part={part} />
@@ -170,8 +202,25 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
         ))}
       </group>
       {part.errors.length > 0 && <ErrorMarker part={part} />}
+      <SelectionBox part={part} target={boxRef} />
     </group>
   )
+})
+
+/** Red BoxHelper around the selected part's model. */
+const SelectionBox = observer(function SelectionBox({
+  part,
+  target,
+}: {
+  part: Part
+  target: React.RefObject<THREE.Group | null>
+}) {
+  const sim = useSimulator()
+  const selected = sim.selection === part
+  const ref = useRef<THREE.Object3D | null>(null)
+  ref.current = selected ? target.current : null
+  useHelper(ref as React.RefObject<THREE.Object3D>, THREE.BoxHelper, 'red')
+  return null
 })
 
 interface ArrowHandle {
@@ -202,7 +251,7 @@ const Arrow = forwardRef<ArrowHandle, { scale?: number }>(
   },
 )
 
-/** Wire tube plus (optional) current arrow + amps label while running. */
+/** Wire tube (endpoints from the model) plus optional current arrow + amps label while running. */
 const WireView = observer(function WireView({ wire }: { wire: Wire }) {
   const sim = useSimulator()
   const mesh = useRef<THREE.Mesh>(null)
@@ -212,15 +261,12 @@ const WireView = observer(function WireView({ wire }: { wire: Wire }) {
   const last = useRef<{ a: THREE.Vector3; b: THREE.Vector3; h: number } | null>(
     null,
   )
-  const ready = !!wire.partOne.container && !!wire.partTwo.container
 
   useFrame(() => {
-    const c1 = wire.partOne.container
-    const c2 = wire.partTwo.container
     const m = mesh.current
-    if (!c1 || !c2 || !m) return
-    const a = c1.getWorldPosition(new THREE.Vector3())
-    const b = c2.getWorldPosition(new THREE.Vector3())
+    if (!m) return
+    const a = partWorldPosition(wire.partOne)
+    const b = partWorldPosition(wire.partTwo)
     if (label.current) {
       const amps = wire.amperage
       const abs = Math.abs(amps)
@@ -247,11 +293,11 @@ const WireView = observer(function WireView({ wire }: { wire: Wire }) {
 
   return (
     <>
-      <mesh ref={mesh} visible={ready}>
+      <mesh ref={mesh}>
         <meshStandardMaterial color={wire.color} side={THREE.DoubleSide} />
       </mesh>
       {wire.showCurrents && (
-        <group ref={label} visible={sim.circuit.running}>
+        <group ref={label} visible={sim.running}>
           <Arrow ref={arrow} scale={0.1} />
           <group position-y={0.15}>
             <Html
@@ -280,14 +326,6 @@ const WireView = observer(function WireView({ wire }: { wire: Wire }) {
       )}
     </>
   )
-})
-
-const SelectionHelper = observer(function SelectionHelper() {
-  const sim = useSimulator()
-  const ref = useRef<THREE.Object3D | null>(null)
-  ref.current = sim.selection?.selectionBox ?? null
-  useHelper(ref as React.RefObject<THREE.Object3D>, THREE.BoxHelper, 'red')
-  return null
 })
 
 const CameraInit = observer(function CameraInit() {
@@ -386,7 +424,6 @@ const Scene = observer(function Scene({ simulator }: { simulator: Simulator }) {
             <WireView key={w.id} wire={w} />
           ))}
         </group>
-        <SelectionHelper />
       </SimulatorContext.Provider>
     </Canvas>
   )

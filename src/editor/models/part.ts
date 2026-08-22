@@ -152,6 +152,30 @@ export abstract class EditorPart {
   get eligibleParents() {
     return this.ctor.eligibleParents
   }
+  /**
+   * World transform derived purely from the model (position/rotation through the
+   * parent chain). Anything that must agree with the model mid-interaction
+   * (wires, snapping) reads this, never a three.js object, so it is correct
+   * before the scene mounts and during animation.
+   */
+  get worldTransform(): { position: THREE.Vector3; rotationY: number } {
+    const parent = this.parent
+    if (!parent)
+      return { position: this.position.clone(), rotationY: this.rotation }
+    const pt = parent.worldTransform
+    const local = this.position
+      .clone()
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), pt.rotationY)
+    return {
+      position: pt.position.add(local),
+      rotationY: pt.rotationY + this.rotation,
+    }
+  }
+  get worldPosition() {
+    return this.worldTransform.position
+  }
+
+  /** World position of the rendered container (three.js); only for picking/measuring. */
   get positionWorld() {
     return this.container
       ? this.container.getWorldPosition(new THREE.Vector3())
