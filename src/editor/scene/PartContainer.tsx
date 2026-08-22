@@ -15,6 +15,7 @@ import { Html } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { ScaledGroup } from './ScaledGroup'
+import { BoxOutline } from './BoxOutline'
 import { useProject } from './context'
 import type { EditorPart, EditorTerminal } from '#/editor/models'
 
@@ -99,6 +100,8 @@ interface DraggableProps {
   onDrag: (hit: THREE.Vector3, offset: THREE.Vector3) => void
   onDragEnd: () => void
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
+  onPointerOver?: () => void
+  onPointerOut?: () => void
   onContextMenu?: (e: ThreeEvent<MouseEvent>) => void
   spring: Record<string, unknown>
   containerRef: (o: THREE.Group | null) => void
@@ -112,6 +115,8 @@ function Draggable({
   onDrag,
   onDragEnd,
   onPointerDown,
+  onPointerOver,
+  onPointerOut,
   onContextMenu,
   spring,
   containerRef,
@@ -156,6 +161,11 @@ function Draggable({
         dragging.current = false
         onDragEnd()
       }}
+      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation()
+        onPointerOver?.()
+      }}
+      onPointerOut={onPointerOut}
       onContextMenu={onContextMenu}
     >
       {children}
@@ -174,6 +184,8 @@ export const PartContainer = observer(function PartContainer({
   const project = useProject()
   const scene = useThree((s) => s.scene)
   const [container, setContainer] = useState<THREE.Group | null>(null)
+  const [hovered, setHovered] = useState(false)
+  const modelRef = useRef<THREE.Group>(null)
   // while the pointer drives the part, the scene mirrors the model immediately;
   // the spring is only for programmatic moves (snap, rotate, undo)
   const dragging = useRef(false)
@@ -272,6 +284,8 @@ export const PartContainer = observer(function PartContainer({
           project.setSelection(part)
         dragging.current = true
       }}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
       onDrag={onDrag}
       onDragEnd={() => {
         dragging.current = false
@@ -295,6 +309,7 @@ export const PartContainer = observer(function PartContainer({
         <group ref={selectionRef}>
           <Suspense fallback={null}>
             <ScaledGroup
+              ref={modelRef}
               position-y={dims.height / 2}
               dimensions={dims}
               fitKey={part.type}
@@ -302,6 +317,11 @@ export const PartContainer = observer(function PartContainer({
               {children}
             </ScaledGroup>
           </Suspense>
+          <BoxOutline
+            target={modelRef}
+            hovered={hovered}
+            selected={project.selection === part}
+          />
         </group>
         {part.terminals.map((t) => (
           <TerminalLabel key={t.name} terminal={t} />

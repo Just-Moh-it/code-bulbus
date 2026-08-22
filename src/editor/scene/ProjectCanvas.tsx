@@ -1,8 +1,8 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { observer } from 'mobx-react-lite'
-import * as THREE from 'three'
+import type * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
-import { AdaptiveDpr, OrbitControls, useHelper } from '@react-three/drei'
+import { AdaptiveDpr, OrbitControls } from '@react-three/drei'
 import type { EditorProject } from '#/editor/models'
 import { ProjectContext, useProject } from './context'
 import { PartContainer } from './PartContainer'
@@ -13,15 +13,6 @@ import { Hotkeys } from './Hotkeys'
 import { preloadModels } from './models'
 
 export const CANVAS_BG = '#F9FAFC'
-
-/** Red BoxHelper around the selected part's model. */
-const SelectionHelper = observer(function SelectionHelper() {
-  const project = useProject()
-  const ref = useRef<THREE.Object3D | null>(null)
-  ref.current = project.selection?.selectionBox ?? null
-  useHelper(ref as React.RefObject<THREE.Object3D>, THREE.BoxHelper, 'red')
-  return null
-})
 
 /** Copies persisted camera into OrbitControls and records it back on every orbit end. */
 const CameraSync = observer(function CameraSync() {
@@ -100,7 +91,6 @@ const Scene = observer(function Scene({ project }: { project: EditorProject }) {
           ))}
         </group>
         <Stamp />
-        <SelectionHelper />
         <Hotkeys />
       </ProjectContext.Provider>
     </Canvas>
