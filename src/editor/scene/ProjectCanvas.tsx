@@ -10,6 +10,7 @@ import { EditorPartModel } from './PartModel'
 import { WireMesh } from './WireMesh'
 import { Stamp } from './Stamp'
 import { Hotkeys } from './Hotkeys'
+import { preloadModels } from './models'
 
 export const CANVAS_BG = '#F9FAFC'
 
@@ -50,6 +51,7 @@ function useDelayedTrue(ms: number) {
 const Scene = observer(function Scene({ project }: { project: EditorProject }) {
   const visible = useDelayedTrue(400)
   const circuit = project.circuit
+  useEffect(() => preloadModels(), [])
   const rootRef = useCallback(
     (g: THREE.Group | null) => circuit.setRoot(g),
     [circuit],
@@ -90,7 +92,9 @@ const Scene = observer(function Scene({ project }: { project: EditorProject }) {
         <group ref={rootRef}>
           {circuit.parts.map((p) => (
             <PartContainer key={p.id} part={p}>
-              <EditorPartModel part={p} />
+              <Suspense fallback={null}>
+                <EditorPartModel part={p} />
+              </Suspense>
             </PartContainer>
           ))}
           {circuit.wires.map((w) => (

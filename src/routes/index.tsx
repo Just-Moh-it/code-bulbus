@@ -8,8 +8,8 @@ export const Route = createFileRoute('/')({ component: Home })
 
 export function SiteHeader() {
   return (
-    <nav>
-      <div className="fixed z-[100] flex h-16 w-full items-center border-b border-border bg-white/70 px-3 backdrop-blur-md md:px-6">
+    <nav className="flex h-16 w-full shrink-0 items-center border-b border-border bg-white/70 px-3 backdrop-blur-md md:px-6">
+      <div className="contents">
         <Link to="/" className="flex items-center gap-3">
           <Logo />
           <span className="font-mono text-lg font-bold">bulbus</span>
@@ -20,7 +20,6 @@ export function SiteHeader() {
           </Link>
         </div>
       </div>
-      <div className="h-16" />
     </nav>
   )
 }

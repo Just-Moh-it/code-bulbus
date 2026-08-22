@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { observer } from 'mobx-react-lite'
 import * as THREE from 'three'
@@ -63,7 +63,11 @@ export function PartStamp({ partType, offset, onAdd, children }: StampProps) {
       })
       root.attach(g)
       if (!part) return
-      setTimeout(() => part.updateConnections(), 100)
+      setTimeout(() => {
+        // same treatment as a drag end: snap to the nearest terminal, then record connections
+        part.setPosition(part.position.clone())
+        part.updateConnections()
+      }, 100)
       onAddRef.current(part)
     }
 
@@ -128,7 +132,7 @@ export function PartStamp({ partType, offset, onAdd, children }: StampProps) {
   return (
     <group ref={ghost} position={pos}>
       <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
-        {children}
+        <Suspense fallback={null}>{children}</Suspense>
       </ScaledGroup>
     </group>
   )

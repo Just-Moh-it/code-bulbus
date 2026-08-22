@@ -295,10 +295,10 @@ export const EditorNavbar = observer(function EditorNavbar({
       )
   }
   return (
-    <nav>
-      <div
-        className={`fixed z-[100] flex ${NAVBAR_H} w-full items-center border-b border-border bg-white px-3 md:px-6`}
-      >
+    <nav
+      className={`relative flex ${NAVBAR_H} w-full shrink-0 items-center border-b border-border bg-white px-3 md:px-6`}
+    >
+      <div className="contents">
         <Link to="/" className="flex items-center gap-3">
           <Logo />
           <span className="font-mono text-lg font-bold">bulbus</span>
@@ -309,7 +309,7 @@ export const EditorNavbar = observer(function EditorNavbar({
           </Link>
         </div>
         <div className="flex-1" />
-        <div className="z-[1] flex gap-3 md:gap-6">
+        <div className="flex gap-3 md:gap-6">
           <div className="flex gap-3">
             <EmbedPopover project={project} />
             <Button
@@ -351,7 +351,6 @@ export const EditorNavbar = observer(function EditorNavbar({
           )}
         </div>
       </div>
-      <div className={NAVBAR_H} />
     </nav>
   )
 })

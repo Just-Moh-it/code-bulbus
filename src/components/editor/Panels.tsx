@@ -15,8 +15,7 @@ import type { EditorProject, StampType } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 import { ArduinoUno } from '#/sim'
 
-const PANEL =
-  'hidden h-[calc(100vh-4rem)] w-64 shrink-0 flex-col bg-white md:flex'
+const PANEL = 'hidden h-full min-h-0 w-64 shrink-0 flex-col bg-white md:flex'
 
 function formatDate(iso?: string) {
   const d = iso ? new Date(iso) : new Date()

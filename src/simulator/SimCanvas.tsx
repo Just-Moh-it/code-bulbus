@@ -160,7 +160,9 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
       >
         <group ref={selectionRef}>
           <ScaledGroup position-y={dims.height / 2} dimensions={dims}>
-            <SimPartModel part={part} />
+            <Suspense fallback={null}>
+              <SimPartModel part={part} />
+            </Suspense>
           </ScaledGroup>
         </group>
         {part.terminals.map((t) => (

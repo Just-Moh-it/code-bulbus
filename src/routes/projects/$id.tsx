@@ -115,7 +115,7 @@ function ProjectPage() {
   }
 
   return (
-    <div className="select-none">
+    <div className="flex h-screen select-none flex-col">
       <EditorNavbar
         project={project}
         simulator={simulator}
@@ -124,46 +124,40 @@ function ProjectPage() {
         onFork={fork}
         onDelete={del}
       />
-      <main className="min-h-[calc(100vh-4rem)]">
-        <div className="relative z-0 flex min-h-[calc(100vh-4rem)]">
-          {simulator ? (
-            <>
-              <SimLeftPanel simulator={simulator} />
-              <div className="relative flex-1">
-                <div
-                  className="absolute inset-0"
-                  style={{ background: CANVAS_BG }}
-                >
-                  <SimCanvas simulator={simulator} />
-                  <SimMessages simulator={simulator} />
-                </div>
-              </div>
-              <SimRightPanel simulator={simulator} />
-            </>
-          ) : (
-            <>
-              {project ? (
-                <EditorLeftPanel project={project} />
-              ) : (
-                <aside className="hidden w-64 shrink-0 border-r border-border bg-white md:block" />
+      <main className="flex min-h-0 flex-1">
+        {simulator ? (
+          <>
+            <SimLeftPanel simulator={simulator} />
+            <div
+              className="relative min-w-0 flex-1"
+              style={{ background: CANVAS_BG }}
+            >
+              <SimCanvas simulator={simulator} />
+              <SimMessages simulator={simulator} />
+            </div>
+            <SimRightPanel simulator={simulator} />
+          </>
+        ) : (
+          <>
+            {project ? (
+              <EditorLeftPanel project={project} />
+            ) : (
+              <aside className="hidden w-64 shrink-0 border-r border-border bg-white md:block" />
+            )}
+            <div
+              className="relative min-w-0 flex-1"
+              style={{ background: CANVAS_BG }}
+            >
+              {project && (
+                <>
+                  <ProjectCanvas key={jsonStr} project={project} />
+                  <PartContextMenu project={project} />
+                </>
               )}
-              <div className="relative flex-1">
-                <div
-                  className="absolute inset-0"
-                  style={{ background: CANVAS_BG }}
-                >
-                  {project && (
-                    <>
-                      <ProjectCanvas key={jsonStr} project={project} />
-                      <PartContextMenu project={project} />
-                    </>
-                  )}
-                </div>
-              </div>
-              {project && <EditorRightPanel project={project} />}
-            </>
-          )}
-        </div>
+            </div>
+            {project && <EditorRightPanel project={project} />}
+          </>
+        )}
       </main>
     </div>
   )
