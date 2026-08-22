@@ -18,7 +18,8 @@
     "test": "bun test src",
     "agents:runtime": "electric-ax agents start",
     "agents:server": "bun --watch agents/server.ts",
-    "agents:stop": "electric-ax agents stop"
+    "agents:stop": "electric-ax agents stop",
+    "proxy": "caddy run --config Caddyfile"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",

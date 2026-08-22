@@ -1,0 +1,17 @@
+# Local HTTPS/HTTP2 front for dev. Browsers cap HTTP/1.1 at ~6 connections per
+# origin; Electric durable streams long-poll, so a few open agents exhaust it
+# and everything on that origin stalls. HTTP/2 multiplexes them.
+#
+#   bun run proxy          (first time: `caddy trust`, needs your password)
+#   app:    https://localhost:8443  -> vite :3005 (HMR websocket passes through)
+#   agents: https://localhost:8444  -> electric coordinator :4437
+
+localhost:8443 {
+	tls internal
+	reverse_proxy localhost:3005
+}
+
+localhost:8444 {
+	tls internal
+	reverse_proxy localhost:4437
+}
