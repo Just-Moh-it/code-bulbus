@@ -3,6 +3,8 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import ConvexProvider from '../integrations/convex/provider'
+import { Toaster } from 'sonner'
+import { TooltipProvider } from '#/components/ui/tooltip'
 
 import appCss from '../styles.css?url'
 
@@ -38,7 +40,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <ConvexProvider>
-          {children}
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster position="bottom-right" richColors />
           <TanStackDevtools
             config={{
               position: 'bottom-right',

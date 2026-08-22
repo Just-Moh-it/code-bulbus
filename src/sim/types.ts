@@ -80,8 +80,14 @@ export interface PartJSON {
   >
   compilationStatus?: 'not-compiled' | 'compiling' | 'success' | 'error'
   compilationOutput?: string
-  [key: string]: unknown
 }
+
+/** Minimal JSON needed to instantiate a part (terminals/extras optional). */
+export type PartInput = Pick<
+  PartJSON,
+  'id' | 'type' | 'parentId' | 'position' | 'rotation'
+> &
+  Partial<PartJSON>
 
 export interface WireJSON {
   id: string

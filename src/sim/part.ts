@@ -1,3 +1,4 @@
+import type { Object3D } from 'three'
 import { Terminal } from './terminal'
 import type { TerminalInit } from './terminal'
 import type { Circuit } from './circuit'
@@ -35,6 +36,10 @@ export abstract class Part {
   readonly parent: Part | undefined
   readonly circuit: Circuit
   readonly errors: PartError[] = []
+  /** Scene refs set by the viewer (not observable). */
+  container: Object3D | null = null
+  object: Object3D | null = null
+  selectionBox: Object3D | null = null
 
   terminals: Terminal[] = []
   terminalsByName: Record<string, Terminal> = {}
