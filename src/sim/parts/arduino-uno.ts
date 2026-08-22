@@ -7,6 +7,7 @@ import { ArduinoRunner } from '../avr/runner'
 import { PartType } from '../types'
 
 const MAX_PWL_POINTS = 8
+const yieldToEventLoop = () => new Promise<void>((r) => setTimeout(r, 0))
 
 /** Records (time, voltage) points for a pin between sim windows. */
 class PinSampler {
@@ -128,13 +129,18 @@ export class ArduinoUno extends Part {
     })
   }
 
-  /** Advance the MCU by one window (50 ms) in 16.667 ms slices, feeding inputs as we go. */
-  afterSimulate() {
+  /**
+   * Advance the MCU by one window (50 ms) in 16.667 ms slices, feeding inputs as we go.
+   * Yields to the event loop between slices so the browser can paint; the engine's
+   * 50 ms pace leaves room for it and headless runs are unaffected.
+   */
+  async afterSimulate() {
     this.simStartTime = this.simulator.milliseconds
     const { simDuration } = this.circuit
     for (let t = 0; t < simDuration; t += 16.667) {
       this.syncSimulatorInputs(this.circuit.data.latestTime - simDuration + t)
       this.simulator.runFor(16.667)
+      if (t + 16.667 < simDuration) await yieldToEventLoop()
     }
   }
 

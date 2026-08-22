@@ -204,8 +204,8 @@ export class Circuit {
   private onSimulate() {
     this.parts.forEach((p) => p.onSimulate?.())
   }
-  private afterSimulate() {
-    this.parts.forEach((p) => p.afterSimulate?.())
+  private async afterSimulate() {
+    for (const p of this.parts) await p.afterSimulate?.()
   }
 
   /** Simulate one window. Pacing matches playback: never faster than real time. */
@@ -224,7 +224,7 @@ export class Circuit {
         this.totalSimTime += performance.now() - t0
         this.simCount += 1
         this.clock.setRate(this.idealClockRate)
-        this.afterSimulate()
+        await this.afterSimulate()
         this.events.onWindow?.(this)
       }
     } catch (e) {

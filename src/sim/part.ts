@@ -120,8 +120,8 @@ export abstract class Part {
   beforeSimulate?(): void
   /** After the netlist is generated, before ngspice runs. */
   onSimulate?(): void
-  /** After ngspice results have been appended to the data bus. */
-  afterSimulate?(): void
+  /** After ngspice results have been appended to the data bus. May be async to yield to the UI. */
+  afterSimulate?(): void | Promise<void>
 
   /** SPICE netlist line(s) for this part. Empty string = nothing to emit. */
   toNetlistItem(): string {
