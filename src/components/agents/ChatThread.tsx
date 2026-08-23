@@ -307,31 +307,33 @@ export function ChatThread({
             Agents unavailable: {error}
           </p>
         ) : sections.length === 0 ? (
-          <Empty className="h-full">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <MessageCircleDashedIcon />
-              </EmptyMedia>
-              <EmptyTitle>Ask bulbus</EmptyTitle>
-              <EmptyDescription>
-                Build, wire, code and simulate — the agent edits this project
-                live.
-              </EmptyDescription>
-            </EmptyHeader>
-            <div className="mt-2 w-full max-w-sm">
-              {SUGGESTIONS.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => void send({ text: prompt, attachments: [] })}
-                  className="block w-full border-b px-1 py-3 text-left text-[13px] text-muted-foreground transition-colors last:border-b-0 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </Empty>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <Empty className="h-full">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <MessageCircleDashedIcon />
+                </EmptyMedia>
+                <EmptyTitle>Ask bulbus</EmptyTitle>
+                <EmptyDescription>
+                  Build, wire, code and simulate — the agent edits this project
+                  live.
+                </EmptyDescription>
+              </EmptyHeader>
+              <div className="mt-2 w-full max-w-sm">
+                {SUGGESTIONS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void send({ text: prompt, attachments: [] })}
+                    className="block w-full border-b px-1 py-3 text-left text-[13px] text-muted-foreground transition-colors last:border-b-0 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </Empty>
+          </div>
         ) : (
           <MessageScrollerProvider autoScroll>
             <MessageScroller className="min-h-0 flex-1">
