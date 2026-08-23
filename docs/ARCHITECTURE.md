@@ -137,6 +137,26 @@ EditorProject ──reaction──▶ diff(lastSent, now) ──▶ circuit.appl
   `circuit.get` serves it with `legacy: true` and the first client to open it
   writes the rows. The blob is never written again.
 
+## Preview thumbnails
+
+Project cards show a render of the actual circuit, produced out of process:
+
+```
+scripts/previews.ts (every 30 s) ──▶ projects.stalePreviews  (hash(circuit) ≠ previewHash)
+        └── headless Chrome ──▶ /preview/$id ──▶ PNG ──▶ storage + projects.setPreview(hash)
+```
+
+- The hash is computed **in Convex** from the parts/wires rows (FNV-1a per
+  entity, xor-folded, order-independent), so it changes exactly when the
+  geometry does — a moved LED re-renders, a rename does not.
+- `/preview/$id` is a chrome-less canvas route. It waits for drei's loader
+  store to go idle before flipping `window.__previewReady`: `part.isReady`
+  only means the container mounted, and shooting on it silently dropped the
+  breadboard and Arduino (their GLBs were still in flight).
+- Chrome is the system install via `playwright-core` — nothing is downloaded.
+  `bun run previews` loops; `--once` does a single pass. `PREVIEW_BATCH`,
+  `PREVIEW_INTERVAL_MS`, `PREVIEW_APP_URL` and `PREVIEW_CHROME` tune it.
+
 ## Agents (Electric Agents)
 
 Each chat in the right-hand panel is one durable **Electric Agents** entity of

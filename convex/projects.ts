@@ -174,7 +174,7 @@ function hashEntities(rows: { id: string; data: unknown }[]) {
     const json = JSON.stringify(row.data, (_k, v: unknown) =>
       v && typeof v === 'object' && !Array.isArray(v)
         ? Object.fromEntries(
-            Object.keys(v as object)
+            Object.keys(v)
               .sort()
               .map((k) => [k, (v as Record<string, unknown>)[k]]),
           )
@@ -236,8 +236,9 @@ export const setPreview = mutation({
       .withIndex('by_public_id', (q) => q.eq('id', id))
       .unique()
     if (!existing) return
+    // best effort: the old file may already be gone
     if (existing.preview && existing.preview !== storageId)
-      await ctx.storage.delete(existing.preview)
+      await ctx.storage.delete(existing.preview).catch(() => {})
     await ctx.db.patch(existing._id, { preview: storageId, previewHash: hash })
   },
 })

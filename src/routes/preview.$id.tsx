@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useProgress } from '@react-three/drei'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
@@ -40,8 +41,16 @@ function PreviewPage() {
     const settle = () => {
       if (cancelled) return
       const parts = project.circuit.parts
+      // `part.isReady` only means the container mounted — the GLB behind it can
+      // still be in flight (that is how breadboards/Arduinos went missing).
+      // The loader store is the real signal; require an idle pass over it.
+      const loaders = useProgress.getState()
       const ready =
-        parts.length > 0 && parts.every((p) => p.object && p.isReady)
+        parts.length > 0 &&
+        parts.every((p) => p.object) &&
+        loaders.total > 0 &&
+        loaders.loaded >= loaders.total &&
+        !loaders.active
       if (!ready && Date.now() - started < MAX_WAIT_MS) {
         setTimeout(settle, 200)
         return
@@ -53,15 +62,18 @@ function PreviewPage() {
           parts
             .map((p) => p.object)
             .filter((o): o is NonNullable<typeof o> => !!o),
-          0.62,
+          0.85,
         )
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          if (!cancelled)
-            (window as unknown as { __previewReady?: boolean }).__previewReady =
-              true
-        }),
-      )
+      setTimeout(() => {
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            if (!cancelled)
+              (
+                window as unknown as { __previewReady?: boolean }
+              ).__previewReady = true
+          }),
+        )
+      }, 400)
     }
     const timer = setTimeout(settle, 300)
     return () => {
