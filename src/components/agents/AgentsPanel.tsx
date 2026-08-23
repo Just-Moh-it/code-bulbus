@@ -114,7 +114,7 @@ export function AgentsPanel({
 
   return (
     <aside
-      className={`pointer-events-auto flex min-h-0 w-96 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm ${collapsed ? 'h-auto' : 'h-full'}`}
+      className={`pointer-events-auto flex min-h-0 w-96 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm ${collapsed ? 'h-auto self-start' : 'h-full'}`}
     >
       <header
         className={`flex h-10 shrink-0 items-center justify-between gap-2 pr-1.5 pl-3 ${collapsed ? '' : 'border-b border-border'}`}

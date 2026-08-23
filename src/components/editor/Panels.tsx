@@ -14,8 +14,11 @@ import type { EditorPart, EditorProject, StampType } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 import { ArduinoUno, Potentiometer, Tmp36 } from '#/sim'
 
-const PANEL =
-  'pointer-events-auto flex h-full min-h-0 w-64 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm'
+const PANEL_BASE =
+  'pointer-events-auto flex min-h-0 w-64 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm'
+const PANEL = `${PANEL_BASE} h-full`
+/** The simulator panel only shows what is relevant, so it hugs its content. */
+const SIM_PANEL = `${PANEL_BASE} h-auto max-h-full`
 
 // ------------------------------------------------------------ icon buttons
 const IconBtn = ({
@@ -389,7 +392,7 @@ export const SimLeftPanel = observer(function SimLeftPanel({
   const [, force] = useForceTick(simulator, 30)
   void force
   return (
-    <aside className={PANEL}>
+    <aside className={SIM_PANEL}>
       {part ? (
         <div className="flex flex-1 flex-col overflow-y-auto">
           <BackHeader
