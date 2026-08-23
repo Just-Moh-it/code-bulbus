@@ -45,6 +45,8 @@ export function useProjectSync(
   } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inFlight = useRef(false)
+  /** Ids this model has held at some point — the only ones it may ask the server to remove. */
+  const seen = useRef(new Set<string>())
 
   // outbound
   useEffect(() => {
@@ -57,8 +59,18 @@ export function useProjectSync(
         return
       }
       const now = project.circuit.toJSON()
+      now.parts.forEach((p) => seen.current.add(p.id))
+      now.wires.forEach((w) => seen.current.add(w.id))
       const ops = diffCircuit(sent.circuit, now)
+      // an entity the model never held (e.g. one reconcile could not build) is not ours to delete
+      ops.removeParts = ops.removeParts.filter((id) => seen.current.has(id))
+      ops.removeWires = ops.removeWires.filter((id) => seen.current.has(id))
       if (isEmptyOps(ops)) return
+      if (ops.removeParts.length || ops.removeWires.length)
+        console.warn('[sync] removing', {
+          parts: ops.removeParts,
+          wires: ops.removeWires,
+        })
       inFlight.current = true
       try {
         await apply({ projectId: project.id, ...ops })
@@ -113,6 +125,8 @@ export function useProjectSync(
     const dirty = opsIds(diffCircuit(sent.circuit, project.circuit.toJSON()))
     const skip = new Set([...project.held, ...dirty])
     project.circuit.loadJSON(server.circuit, skip)
+    project.circuit.parts.forEach((p) => seen.current.add(p.id))
+    project.circuit.wires.forEach((w) => seen.current.add(w.id))
     // server truth for everything we applied; keep our view of skipped ids
     const keep = <T extends { id: string }>(mine: T[], theirs: T[]) => {
       const m = new Map(

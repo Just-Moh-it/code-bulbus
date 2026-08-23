@@ -1,30 +1,29 @@
 /**
- * App-specific tools exposed to Electric Agents. Each tool talks to Convex
- * over HTTP (no auth yet — every project is editable). Edits are saved as
- * entity-level ops (diff of loaded vs edited), so open editors pick them up
- * live and concurrent edits to other parts are never clobbered.
+ * App-specific tools exposed to Electric Agents.
  *
- * Tools return `{ content: [{ type: 'text', text }], details }` per the
- * AgentTool contract; throw on failure.
+ * The agent talks in parts and nets, never in holes or coordinates:
+ *   add_part(type)              → placed by `layout.placeOnBoard` / `placeFree`
+ *   connect("led.+", "uno.13")  → wire routed by `layout.planConnect`
+ *   get_project / simulate      → nets and problems from the real simulator
+ * so nothing the model says can disagree with what the editor or SPICE does.
+ *
+ * Edits are saved as entity-level ops (diff of loaded vs edited) so open
+ * editors pick them up live. Tools return `{ content: [{type:'text', text}] }`
+ * per the AgentTool contract; they throw with an actionable message on failure.
  */
 import { Type } from '@sinclair/typebox'
 import type { Static, TSchema } from '@sinclair/typebox'
 import type { AgentTool } from '@electric-ax/agents-runtime'
 import { ConvexHttpClient } from 'convex/browser'
 import { api } from '../convex/_generated/api'
-import * as defs from '#/sim/defs'
-import { PartType, mg } from '#/sim/types'
 import type {
   CircuitJSON,
   PartJSON,
   PartType as PartTypeT,
   ProjectJSON,
-  TerminalDefinition,
 } from '#/sim/types'
-import { partManagers, LED_COLORS, WIRE_COLORS } from '#/editor/models'
-import type { EditorPart } from '#/editor/models'
+import { LED_COLORS } from '#/editor/models'
 import { compileSketch } from '#/server/compile'
-import { PALETTE } from '#/lib/projects'
 import { diffCircuit, isEmptyOps } from '#/editor/sync/diff'
 import {
   ArduinoUno,
@@ -36,8 +35,20 @@ import {
   Motor,
   Potentiometer,
   Resistor,
+  TactileSwitch,
   Tmp36,
 } from '#/sim'
+import {
+  isFreeStanding,
+  isPartType,
+  nets,
+  placeFree,
+  placeOnBoard,
+  planConnect,
+  danglingWires,
+  terminalDefs,
+} from './layout'
+import type { NetMember } from './layout'
 
 const CONVEX_URL = process.env.VITE_CONVEX_URL
 if (!CONVEX_URL) throw new Error('VITE_CONVEX_URL is not set (see .env.local)')
@@ -69,178 +80,202 @@ async function loadProject(id: string): Promise<ProjectJSON> {
   return project
 }
 
-/** Persist only what changed since `loadProject`. */
-async function saveCircuit(project: ProjectJSON, circuit: CircuitJSON) {
+async function saveCircuit(project: ProjectJSON) {
   const base = baselines.get(project) ?? { parts: [], wires: [] }
-  const ops = diffCircuit(base, circuit)
+  const ops = diffCircuit(base, project.circuit)
   if (isEmptyOps(ops)) return
   await convex.mutation(api.circuit.apply, { projectId: project.id, ...ops })
-  baselines.set(project, structuredClone(circuit))
+  baselines.set(project, structuredClone(project.circuit))
 }
 
-/** Terminal definitions per type; types without an entry here can't be placed by tools yet. */
-const TERMINALS: Partial<
-  Record<
-    PartTypeT,
-    TerminalDefinition[] | ((model: string) => TerminalDefinition[])
-  >
-> = {
-  [PartType.Breadboard]: defs.breadboardTerminals,
-  [PartType.RaspberryPi]: defs.raspberryPiTerminals,
-  [PartType.Resistor]: defs.resistorTerminals,
-  [PartType.TactileSwitch]: defs.tactileSwitchTerminals,
-  [PartType.WireEnd]: defs.wireEndTerminals,
-  [PartType.Battery]: defs.batteryTerminals,
-  [PartType.Led]: defs.ledTerminals,
-  [PartType.NpnTransistor]: defs.npnTerminals,
-  [PartType.PnpTransistor]: defs.pnpTerminals,
-  [PartType.Capacitor]: defs.capacitorTerminals,
-  [PartType.Lcd1602]: defs.lcd1602Terminals,
-  [PartType.Lcd1602I2c]: defs.lcd1602I2cTerminals,
-  [PartType.Potentiometer]: defs.potentiometerTerminals,
-  [PartType.Tmp36]: defs.tmp36Terminals,
-  [PartType.Timer]: defs.timerTerminals,
-  [PartType.ArduinoUno]: defs.arduinoUnoTerminals,
-  [PartType.Motor]: defs.motorTerminals,
-  [PartType.EightPinChip]: defs.eightPinChipTerminals,
+const short = (id: string) => id.slice(0, 8)
+
+/** Words the model is likely to use for a type. */
+const TYPE_ALIASES: Record<string, PartTypeT[]> = {
+  arduino: ['arduino-uno'],
+  uno: ['arduino-uno'],
+  button: ['tactile-switch'],
+  switch: ['tactile-switch'],
+  pushbutton: ['tactile-switch'],
+  pot: ['potentiometer'],
+  lcd: ['lcd1602-i2c', 'lcd1602'],
+  display: ['lcd1602-i2c', 'lcd1602'],
+  board: ['breadboard'],
+  bb: ['breadboard'],
+  r: ['resistor'],
+  res: ['resistor'],
+  npn: ['npn-transistor'],
+  pnp: ['pnp-transistor'],
+  cap: ['capacitor'],
+  temp: ['tmp36'],
+  sensor: ['tmp36'],
 }
 
-function terminalDefs(
-  part: Pick<PartJSON, 'type' | 'model'>,
-): TerminalDefinition[] {
-  const t = TERMINALS[part.type]
-  if (!t) throw new Error(`Tools don't know the terminals of ${part.type} yet`)
-  return typeof t === 'function' ? t(part.model ?? '') : t
-}
-
-/** Static metadata of an editor part class. */
-const manager = (type: PartTypeT) =>
-  partManagers[type] as unknown as typeof EditorPart
-
-function dragSurfaceHeight(type: PartTypeT) {
-  const M = manager(type)
-  return M.dragSurfaceHeight ?? M.dimensions.height
-}
-
-const isPartType = (t: string): t is PartTypeT =>
-  (Object.values(PartType) as string[]).includes(t)
-
-/** A part's summary for the agent: terminals with their connections and, for parents, their terminal names. */
-function describePart(p: PartJSON) {
-  const { id, type, parentId, position, rotation, terminals, ...rest } = p
-  const extras = Object.fromEntries(
-    Object.entries(rest).filter(
-      ([k]) =>
-        ![
-          'files',
-          'hexFile',
-          'compilationOutput',
-          'showLabels',
-          'showVoltages',
-        ].includes(k),
-    ),
-  )
-  return { id, type, parentId, position, rotation, terminals, ...extras }
-}
-
-/**
- * Place `part` on `parent` so its first requested terminal sits exactly on the
- * named parent hole, then resolve EVERY bottom terminal's connection from
- * geometry — the same 0.33·mg rule the editor uses — so stored connections can
- * never disagree with where the legs physically are. The four rotations are
- * tried in order starting from the part's own; the first that satisfies all
- * requested holes wins. If none does, the error lists where each leg lands at
- * each rotation so the caller can pick reachable holes.
- */
-function placeOnParent(part: PartJSON, parent: PartJSON) {
-  const requested = Object.fromEntries(
-    part.terminals.map((t) => [t.name, t.connections[0]]),
-  )
-  const first = part.terminals[0]
-  if (!first?.connections[0]) return
-  const own = terminalDefs(part)
-  const parentTerms = terminalDefs(parent)
-  const anchor = own.find((d) => d.name === first.name)
-  const target = parentTerms.find((d) => d.name === first.connections[0])
-  if (!anchor) throw new Error(`${part.type} has no terminal "${first.name}"`)
-  if (!target)
-    throw new Error(`${parent.type} has no terminal "${first.connections[0]}"`)
-
-  const attempt = (rot: number) => {
-    const local = (d: TerminalDefinition) => ({
-      x: d.position.x * Math.cos(rot) + d.position.z * Math.sin(rot),
-      z: -d.position.x * Math.sin(rot) + d.position.z * Math.cos(rot),
-    })
-    const a = local(anchor)
-    const position = {
-      x: target.position.x - a.x,
-      y: dragSurfaceHeight(parent.type),
-      z: target.position.z - a.z,
-    }
-    const terminals = own
-      .filter((d) => d.surface === 'bottom')
-      .map((d) => {
-        const l = local(d)
-        const hit = parentTerms.find(
-          (t) =>
-            Math.hypot(
-              t.position.x - (position.x + l.x),
-              t.position.z - (position.z + l.z),
-            ) <
-            0.33 * mg,
-        )
-        return { name: d.name, connections: hit ? [hit.name] : [] }
-      })
-    const ok = Object.entries(requested).every(
-      ([name, want]) =>
-        !want ||
-        terminals.find((t) => t.name === name)?.connections[0] === want,
-    )
-    return { rot, position, terminals, ok }
-  }
-
-  const tried = [0, 1, 2, 3].map((k) =>
-    attempt(part.rotation + (k * Math.PI) / 2),
-  )
-  const hit = tried.find((t) => t.ok)
-  if (!hit) {
-    const table = tried
-      .map(
-        (t) =>
-          `rotation ${Math.round((t.rot * 180) / Math.PI) % 360}°: ` +
-          t.terminals
-            .map((x) => `${x.name}→${x.connections[0] ?? 'none'}`)
-            .join(', '),
-      )
-      .join('; ')
+/** Resolve "<id-prefix | type | alias>" to one non-wire part. */
+function resolvePart(circuit: CircuitJSON, ref: string): PartJSON {
+  const key = ref.trim().toLowerCase()
+  const parts = circuit.parts.filter((p) => p.type !== 'wire-end')
+  const byId = parts.filter((p) => p.id.toLowerCase().startsWith(key))
+  if (byId.length === 1) return byId[0]
+  const types = TYPE_ALIASES[key] ?? [key]
+  const byType = parts.filter((p) => types.includes(p.type))
+  if (byType.length === 1) return byType[0]
+  if (byType.length > 1)
     throw new Error(
-      `Cannot place ${part.type} with ${JSON.stringify(requested)}: legs are a fixed distance apart. ` +
-        `With "${first.name}" on ${first.connections[0]} the legs land at — ${table}. Pick one of these combinations.`,
+      `"${ref}" is ambiguous — there are ${byType.length} ${byType[0].type}s; use an id: ${byType
+        .map((p) => short(p.id))
+        .join(', ')}`,
     )
-  }
-  part.rotation = hit.rot
-  part.position = hit.position
-  part.terminals = hit.terminals
+  throw new Error(
+    `No part "${ref}". Parts: ${parts.map((p) => `${p.type} ${short(p.id)}`).join(', ')}`,
+  )
+}
+
+/** Resolve a terminal name on a part, tolerating "13" for "~13", "gnd" for "gnd.1", case. */
+function resolveTerminal(part: PartJSON, name: string): string {
+  const defsOf = terminalDefs(part)
+  const names = defsOf.map((d) => d.name)
+  const key = name.trim()
+  const exact =
+    names.find((n) => n === key) ??
+    names.find((n) => n.toLowerCase() === key.toLowerCase())
+  if (exact) return exact
+  const tilde = names.find((n) => n === `~${key}`)
+  if (tilde) return tilde
+  const prefixed = names.find((n) =>
+    n.toLowerCase().startsWith(`${key.toLowerCase()}.`),
+  )
+  if (prefixed) return prefixed
+  throw new Error(
+    `${part.type} has no terminal "${name}". Terminals: ${names.join(', ')}`,
+  )
+}
+
+/** "<part>.<terminal>" — split at the first dot (terminal names may contain dots). */
+function resolveRef(circuit: CircuitJSON, ref: string) {
+  const i = ref.indexOf('.')
+  if (i < 0)
+    throw new Error(
+      `"${ref}" must be "<part>.<terminal>", e.g. "led.+", "uno.13", "battery.-", "breadboard.positive.a.1"`,
+    )
+  const part = resolvePart(circuit, ref.slice(0, i))
+  return { part, terminal: resolveTerminal(part, ref.slice(i + 1)) }
 }
 
 const LED_COLOR_VALUES: string[] = LED_COLORS.map((c) => c.value)
-const WIRE_COLOR_VALUES: string[] = WIRE_COLORS.map((c) => c.value)
 
-/** Reject property values the editor would not accept. */
-function validateProperties(type: PartTypeT, props: Record<string, unknown>) {
-  if (
-    type === 'led' &&
-    'color' in props &&
-    !LED_COLOR_VALUES.includes(String(props.color))
-  ) {
-    throw new Error(
-      `LED color must be one of ${LED_COLOR_VALUES.join(', ')} (got ${String(props.color)})`,
-    )
+/** Editable properties per type, documented once and validated against the same table. */
+const PROPERTIES: Partial<
+  Record<PartTypeT, Record<string, (v: unknown) => string | null>>
+> = {
+  battery: { voltage: num },
+  resistor: { kohm: num },
+  led: {
+    color: (v) =>
+      LED_COLOR_VALUES.includes(String(v))
+        ? null
+        : `one of ${LED_COLOR_VALUES.join(' | ')}`,
+  },
+  'tactile-switch': { latching: bool },
+  'npn-transistor': { model: oneOf(['2N2222', '2N3904']) },
+  'pnp-transistor': { model: oneOf(['2N3906']) },
+  capacitor: { capacitance: num },
+  potentiometer: {
+    wiper: (v) =>
+      typeof v === 'number' && v >= 0 && v <= 1 ? null : 'a number 0..1',
+  },
+  tmp36: { temperature: num },
+  'lcd1602-i2c': { i2cAddress: num },
+  '8-pin-chip': { chipName: str, subcktCode: str },
+}
+function num(v: unknown) {
+  return typeof v === 'number' ? null : 'a number'
+}
+function bool(v: unknown) {
+  return typeof v === 'boolean' ? null : 'true or false'
+}
+function str(v: unknown) {
+  return typeof v === 'string' ? null : 'a string'
+}
+function oneOf(values: string[]) {
+  return (v: unknown) =>
+    values.includes(String(v)) ? null : `one of ${values.join(' | ')}`
+}
+function describeProperties(type: PartTypeT) {
+  return Object.keys(PROPERTIES[type] ?? {})
+}
+function applyProperties(part: PartJSON, props: Record<string, unknown>) {
+  const allowed = PROPERTIES[part.type] ?? {}
+  for (const [k, v] of Object.entries(props)) {
+    const check = allowed[k]
+    if (!check)
+      throw new Error(
+        `${part.type} has no property "${k}". Editable: ${Object.keys(allowed).join(', ') || 'none'}`,
+      )
+    const problem = check(v)
+    if (problem) throw new Error(`${part.type}.${k} must be ${problem}`)
+    ;(part as unknown as Record<string, unknown>)[k] = v
   }
-  for (const k of ['kohm', 'voltage', 'capacitance']) {
-    if (k in props && typeof props[k] !== 'number')
-      throw new Error(`${k} must be a number`)
-  }
+}
+
+/** The circuit as the agent should see it: parts with their editable state, nets, and floating pins. */
+function describeCircuit(circuit: CircuitJSON) {
+  const parts = circuit.parts
+    .filter((p) => p.type !== 'wire-end')
+    .map((p) => {
+      const props = Object.fromEntries(
+        describeProperties(p.type).map((k) => [
+          k,
+          (p as unknown as Record<string, unknown>)[k],
+        ]),
+      )
+      const placed = p.parentId ? 'on breadboard' : 'on table'
+      return {
+        id: short(p.id),
+        type: p.type,
+        ...props,
+        ...(p.type === 'arduino-uno'
+          ? {
+              compiled: p.compilationStatus === 'success',
+              hasCode: !!p.files?.['main.ino'],
+            }
+          : {}),
+        placed,
+      }
+    })
+  const label = (m: { partId: string; type: string; terminal: string }) =>
+    m.type === 'breadboard'
+      ? `breadboard.${m.terminal}`
+      : `${m.type}:${short(m.partId)}.${m.terminal}`
+  const pins = (n: NetMember[]) => n.filter((m) => m.type !== 'breadboard')
+  const all = nets(circuit)
+  const connected = all
+    .filter((n) => pins(n).length > 1)
+    .map((n) => n.map(label))
+  // a pin alone on its net (an unused strip or rail does not count as a connection)
+  const floating = all
+    .filter((n) => pins(n).length === 1)
+    .map((n) => label(pins(n)[0]))
+  return { parts, nets: connected, floating, wires: circuit.wires.length }
+}
+
+/**
+ * One tool at a time per project. The model often emits several calls in one
+ * step and the runtime runs them concurrently; each tool loads → edits → saves,
+ * so unserialised calls would place parts on top of each other.
+ */
+const locks = new Map<string, Promise<unknown>>()
+function withProjectLock<T>(
+  projectId: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const prev = locks.get(projectId) ?? Promise.resolve()
+  const run = prev.then(fn, fn)
+  locks.set(
+    projectId,
+    run.catch(() => undefined),
+  )
+  return run
 }
 
 function tool<T extends TSchema>(def: {
@@ -255,252 +290,204 @@ function tool<T extends TSchema>(def: {
     label: def.label,
     description: def.description,
     parameters: def.parameters,
-    execute: async (_id: string, params: unknown) =>
-      text(await def.execute(params)),
+    execute: async (_id: string, params: unknown) => {
+      const projectId = String(
+        (params as { projectId?: string }).projectId ?? '',
+      )
+      return text(await withProjectLock(projectId, () => def.execute(params)))
+    },
   }
 }
 
-const ProjectId = Type.String({
-  description: 'Project id (uuid) — the last path segment of /projects/<id>',
-})
+const ProjectId = Type.String({ description: 'Project id (uuid)' })
+const Ref = (what: string) =>
+  Type.String({
+    description: `${what} as "<part>.<terminal>": part = id prefix, type, or alias (uno, button, pot, lcd, battery…); terminal = pin name. Examples: "led.+", "uno.13", "uno.gnd", "uno.a0", "button.1", "battery.-", "breadboard.positive.a.1"`,
+  })
 
 // ------------------------------------------------------------------- tools
 export const getProject = tool({
   name: 'get_project',
   label: 'Get project',
   description:
-    'Read a project: every part with its terminals/connections and every wire. Use this before editing.',
+    'The circuit as nets: every part (id, type, editable properties), which pins are joined together, and `floating` pins that connect to nothing. Call first, and again after changes if unsure.',
   parameters: Type.Object({ projectId: ProjectId }),
   execute: async ({ projectId }) => {
     const p = await loadProject(projectId)
-    return {
-      id: p.id,
-      name: p.name,
-      parts: p.circuit.parts.map(describePart),
-      wires: p.circuit.wires,
-    }
+    return { id: p.id, name: p.name, ...describeCircuit(p.circuit) }
   },
-})
-
-export const listPartTypes = tool({
-  name: 'list_part_types',
-  label: 'List part types',
-  description:
-    'Catalogue of part types with their terminal names, which parents they can sit on, and their editable properties. Breadboard holes are named like "A.12" (strip rows A–J, columns 1–63; columns are connected within A–E and within F–J) and "positive.a.7"/"negative.a.7" (power rails, 1–50).',
-  parameters: Type.Object({}),
-  execute: async () =>
-    PALETTE.filter((p) => p.stampType !== 'wire').map((p) => {
-      const type = p.stampType as PartTypeT
-      const M = manager(type)
-      const terms = TERMINALS[type] ? terminalDefs({ type }) : []
-      const props: Record<string, string> = {
-        battery: 'voltage (V, default 9)',
-        resistor: 'kohm (kΩ, default 1)',
-        led: 'color: Crimson | DeepSkyBlue | MediumSeaGreen',
-        'tactile-switch': 'latching (boolean)',
-        'npn-transistor': 'model: 2N2222 | 2N3904',
-        'pnp-transistor': 'model: 2N3906',
-        capacitor: 'capacitance (farads, default 1e-6)',
-        'arduino-uno': 'files (set via set_arduino_code)',
-        '8-pin-chip': 'chipName, pinLabels {"1":"…"}, subcktCode',
-      }
-      return {
-        type,
-        label: p.label,
-        terminals:
-          type === 'breadboard' || type === 'raspberry-pi'
-            ? `${terms.length} holes (see description)`
-            : terms.map((t) => t.name),
-        eligibleParents: [...M.eligibleParents],
-        properties: props[type] ?? 'none',
-      }
-    }),
 })
 
 export const addPart = tool({
   name: 'add_part',
   label: 'Add part',
   description:
-    'Add a part. To put it on a breadboard (or another parent) give parentId and connections mapping the part\'s terminal names to parent terminal names, e.g. {"+":"F.13","-":"F.14"}; the part is positioned so the first connection lands on that hole. Free-standing parts (battery, arduino-uno, breadboard, motor) take a position instead. Returns the new part id.',
+    'Add a part; it is placed automatically (on the breadboard, or on the table for arduino-uno/battery/motor). Returns its id and pin names — then use connect() to wire it. Types: arduino-uno, breadboard, battery, resistor (kohm), led (color), tactile-switch (pins 1-2 are one side, 3-4 the other; pressing joins the sides), capacitor, npn-transistor, pnp-transistor, motor, timer (555), 8-pin-chip, lcd1602-i2c (i2cAddress 0x27), lcd1602, potentiometer (pins 1, wiper, 3), tmp36 (vs, vout, gnd).',
   parameters: Type.Object({
     projectId: ProjectId,
-    type: Type.String({ description: 'Part type from list_part_types' }),
-    parentId: Type.Optional(Type.String()),
-    connections: Type.Optional(Type.Record(Type.String(), Type.String())),
-    position: Type.Optional(
-      Type.Object({ x: Type.Number(), z: Type.Number() }),
-    ),
-    rotation: Type.Optional(
-      Type.Number({ description: 'radians about Y; multiples of π/2' }),
-    ),
+    type: Type.String(),
     properties: Type.Optional(
       Type.Record(Type.String(), Type.Unknown(), {
-        description: 'e.g. {"kohm":0.22} or {"color":"DeepSkyBlue"}',
+        description: 'e.g. {"kohm":0.22}, {"color":"Crimson"}, {"voltage":9}',
       }),
     ),
   }),
-  execute: async ({
-    projectId,
-    type,
-    parentId,
-    connections,
-    position,
-    rotation,
-    properties,
-  }) => {
-    if (!isPartType(type)) throw new Error(`Unknown part type ${type}`)
-    validateProperties(type, properties ?? {})
+  execute: async ({ projectId, type, properties }) => {
+    const key = type.trim().toLowerCase()
+    const resolved = isPartType(key) ? key : TYPE_ALIASES[key]?.[0]
+    if (!resolved || !isPartType(resolved))
+      throw new Error(
+        `Unknown part type "${type}" — see add_part description for the list`,
+      )
     const project = await loadProject(projectId)
     const circuit = project.circuit
     const part: PartJSON = {
       id: crypto.randomUUID(),
-      type,
-      parentId: parentId ?? null,
-      position: { x: position?.x ?? 0, y: 0, z: position?.z ?? 0 },
-      rotation: rotation ?? 0,
-      terminals: Object.entries(connections ?? {}).map(([name, to]) => ({
-        name,
-        connections: [to],
-      })),
+      type: resolved,
+      parentId: null,
+      position: { x: 0, y: 0, z: 0 },
+      rotation: 0,
+      terminals: [],
       showLabels: false,
       showVoltages: false,
-      ...(properties ?? {}),
     }
-    if (parentId) {
-      const parent = circuit.parts.find((p) => p.id === parentId)
-      if (!parent) throw new Error(`Parent ${parentId} not found`)
-      if (!manager(type).eligibleParents.has(parent.type))
-        throw new Error(`${type} cannot be placed on ${parent.type}`)
-      placeOnParent(part, parent)
+    applyProperties(part, properties ?? {})
+    if (isFreeStanding(resolved)) placeFree(circuit, part)
+    else {
+      const board = circuit.parts.find((p) => p.type === 'breadboard')
+      if (!board)
+        throw new Error(
+          'No breadboard in the project — add_part("breadboard") first',
+        )
+      part.parentId = board.id
+      placeOnBoard(circuit, part, board)
     }
     circuit.parts.push(part)
-    await saveCircuit(project, circuit)
-    return { added: describePart(part) }
+    await saveCircuit(project)
+    const pins = terminalDefs(part).map((d) => d.name)
+    const note =
+      part.type === 'tactile-switch'
+        ? 'pins 1 and 2 are the SAME contact; 3 and 4 are the other contact. Wire one side via pin 1 and the other via pin 3.'
+        : undefined
+    return {
+      added: {
+        id: short(part.id),
+        type: part.type,
+        pins,
+        ...(note ? { note } : {}),
+      },
+    }
   },
 })
 
-export const updatePart = tool({
-  name: 'update_part',
-  label: 'Update part',
+export const connect = tool({
+  name: 'connect',
+  label: 'Connect',
   description:
-    'Change properties (kohm, voltage, color, model, …), rotation, or terminal connections of an existing part.',
+    'Join two pins electrically. The tool picks free breadboard holes on each net and routes the wire; if the pins are already on one net it does nothing. Connect pins to pins — never to holes.',
   parameters: Type.Object({
     projectId: ProjectId,
-    partId: Type.String(),
-    properties: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-    rotation: Type.Optional(Type.Number()),
-    connections: Type.Optional(Type.Record(Type.String(), Type.String())),
+    a: Ref('First pin'),
+    b: Ref('Second pin'),
   }),
-  execute: async ({ projectId, partId, properties, rotation, connections }) => {
+  execute: async ({ projectId, a, b }) => {
     const project = await loadProject(projectId)
-    const part = project.circuit.parts.find((p) => p.id === partId)
-    if (!part) throw new Error(`Part ${partId} not found`)
-    validateProperties(part.type, properties ?? {})
-    Object.assign(part, properties ?? {})
-    if (rotation !== undefined) part.rotation = rotation
-    if (connections) {
-      part.terminals = Object.entries(connections).map(([name, to]) => ({
-        name,
-        connections: [to],
-      }))
-      const parent = project.circuit.parts.find((p) => p.id === part.parentId)
-      if (parent) placeOnParent(part, parent)
-    }
-    await saveCircuit(project, project.circuit)
-    return { updated: describePart(part) }
+    const c = project.circuit
+    const ra = resolveRef(c, a)
+    const rb = resolveRef(c, b)
+    const plan = planConnect(c, ra, rb)
+    if (!plan) return { alreadyConnected: true }
+    c.parts.push(...plan.ends)
+    c.wires.push(plan.wire)
+    await saveCircuit(project)
+    return { wired: `${plan.from} ↔ ${plan.to}`, color: plan.wire.color }
   },
 })
 
-export const removePart = tool({
-  name: 'remove_part',
-  label: 'Remove part or wire',
+export const setProperty = tool({
+  name: 'set_property',
+  label: 'Set property',
   description:
-    'Remove a part or a wire by id (plus anything parented to it; removing a wire removes both of its ends).',
-  parameters: Type.Object({ projectId: ProjectId, partId: Type.String() }),
-  execute: async ({ projectId, partId }) => {
+    'Change editable properties of a part: resistor kohm, led color (Crimson | DeepSkyBlue | MediumSeaGreen), battery voltage, tactile-switch latching, potentiometer wiper (0..1), tmp36 temperature (°C), lcd1602-i2c i2cAddress.',
+  parameters: Type.Object({
+    projectId: ProjectId,
+    part: Type.String({ description: 'id prefix, type, or alias' }),
+    properties: Type.Record(Type.String(), Type.Unknown()),
+  }),
+  execute: async ({ projectId, part, properties }) => {
+    const project = await loadProject(projectId)
+    const p = resolvePart(project.circuit, part)
+    applyProperties(p, properties)
+    await saveCircuit(project)
+    return { updated: { id: short(p.id), type: p.type, ...properties } }
+  },
+})
+
+export const remove = tool({
+  name: 'remove',
+  label: 'Remove',
+  description:
+    'Remove a part (with its wires) or disconnect two pins (removes the wire joining them).',
+  parameters: Type.Object({
+    projectId: ProjectId,
+    part: Type.Optional(
+      Type.String({ description: 'id prefix, type, or alias' }),
+    ),
+    a: Type.Optional(Ref('First pin of the wire to remove')),
+    b: Type.Optional(Ref('Second pin of the wire to remove')),
+  }),
+  execute: async ({ projectId, part, a, b }) => {
     const project = await loadProject(projectId)
     const c = project.circuit
-    const wire = c.wires.find((w) => w.id === partId)
-    if (!wire && !c.parts.some((p) => p.id === partId))
-      throw new Error(`No part or wire with id ${partId}`)
-    const doomed = new Set<string>(
-      wire ? [wire.partOneId, wire.partTwoId] : [partId],
-    )
+    const doomed = new Set<string>()
+    if (part) doomed.add(resolvePart(c, part).id)
+    else if (a && b) {
+      // the wire whose ends sit on the two pins' nets and whose removal is what the model means
+      const ra = resolveRef(c, a)
+      const rb = resolveRef(c, b)
+      const endHole = (e: PartJSON) => e.terminals[0]?.connections[0]
+      const onNet = (e: PartJSON, r: { part: PartJSON; terminal: string }) =>
+        e.parentId === r.part.id && endHole(e) === r.terminal
+      const hit = c.wires.find((w) => {
+        const e1 = c.parts.find((p) => p.id === w.partOneId)!
+        const e2 = c.parts.find((p) => p.id === w.partTwoId)!
+        return (
+          (onNet(e1, ra) && onNet(e2, rb)) || (onNet(e1, rb) && onNet(e2, ra))
+        )
+      })
+      if (!hit) throw new Error(`No wire runs directly between ${a} and ${b}`)
+      doomed.add(hit.partOneId)
+      doomed.add(hit.partTwoId)
+    } else throw new Error('Give either part, or both a and b')
     let grew = true
     while (grew) {
       grew = false
       for (const p of c.parts)
-        if (p.parentId && doomed.has(p.parentId) && !doomed.has(p.id))
-          (doomed.add(p.id), (grew = true))
+        if (p.parentId && doomed.has(p.parentId) && !doomed.has(p.id)) {
+          doomed.add(p.id)
+          grew = true
+        }
     }
     for (const w of c.wires)
-      if (doomed.has(w.partOneId) || doomed.has(w.partTwoId))
-        (doomed.add(w.partOneId), doomed.add(w.partTwoId))
+      if (doomed.has(w.partOneId) || doomed.has(w.partTwoId)) {
+        doomed.add(w.partOneId)
+        doomed.add(w.partTwoId)
+      }
     c.wires = c.wires.filter(
       (w) => !doomed.has(w.partOneId) && !doomed.has(w.partTwoId),
     )
     c.parts = c.parts.filter((p) => !doomed.has(p.id))
-    await saveCircuit(project, c)
-    return { removed: [...doomed] }
-  },
-})
-
-export const addWire = tool({
-  name: 'add_wire',
-  label: 'Add wire',
-  description:
-    'Connect two terminals with a wire, e.g. from {partId: <battery>, terminal: "+"} to {partId: <breadboard>, terminal: "positive.a.1"}. Creates the two wire ends and the wire.',
-  parameters: Type.Object({
-    projectId: ProjectId,
-    from: Type.Object({ partId: Type.String(), terminal: Type.String() }),
-    to: Type.Object({ partId: Type.String(), terminal: Type.String() }),
-    color: Type.Optional(
-      Type.String({
-        description:
-          'Crimson | DarkOrange | Gold | MediumSeaGreen | DeepSkyBlue | MediumOrchid | Black | White',
-      }),
-    ),
-  }),
-  execute: async ({ projectId, from, to, color }) => {
-    const project = await loadProject(projectId)
-    const c = project.circuit
-    const end = (at: { partId: string; terminal: string }): PartJSON => {
-      const parent = c.parts.find((p) => p.id === at.partId)
-      if (!parent) throw new Error(`Part ${at.partId} not found`)
-      if (!manager('wire-end').eligibleParents.has(parent.type))
-        throw new Error(
-          `Wires cannot attach to a ${parent.type}; attach to a breadboard hole, battery, arduino, motor or raspberry-pi pin`,
-        )
-      const e: PartJSON = {
-        id: crypto.randomUUID(),
-        type: 'wire-end',
-        parentId: parent.id,
-        position: { x: 0, y: 0, z: 0 },
-        rotation: 0,
-        terminals: [{ name: 't1', connections: [at.terminal] }],
-        showLabels: false,
-      }
-      placeOnParent(e, parent)
-      return e
+    // jumpers that only served the removed part go with it, so its strips come back clean
+    let dangling = danglingWires(c)
+    while (dangling.length) {
+      const ends = new Set(dangling.flatMap((w) => [w.partOneId, w.partTwoId]))
+      c.wires = c.wires.filter((w) => !dangling.includes(w))
+      c.parts = c.parts.filter((p) => !ends.has(p.id))
+      ends.forEach((e) => doomed.add(e))
+      dangling = danglingWires(c)
     }
-    const a = end(from)
-    const b = end(to)
-    c.parts.push(a, b)
-    if (color && !WIRE_COLOR_VALUES.includes(color))
-      throw new Error(
-        `Wire color must be one of ${WIRE_COLOR_VALUES.join(', ')}`,
-      )
-    const wire = {
-      id: crypto.randomUUID(),
-      color: color ?? 'Crimson',
-      partOneId: a.id,
-      partTwoId: b.id,
-      height: 2,
-      showCurrents: false,
-    }
-    c.wires.push(wire)
-    await saveCircuit(project, c)
-    return { wire, ends: [a.id, b.id] }
+    await saveCircuit(project)
+    return { removed: [...doomed].map(short) }
   },
 })
 
@@ -508,29 +495,30 @@ export const setArduinoCode = tool({
   name: 'set_arduino_code',
   label: 'Set Arduino code',
   description:
-    'Replace main.ino of an Arduino Uno part and compile it with arduino-cli. Returns compiler output; the sketch must compile before the project can simulate.',
+    'Replace main.ino of the Arduino and compile it (arduino-cli; libraries: Wire, LiquidCrystal, LiquidCrystal_I2C). Must compile before simulate can run the MCU.',
   parameters: Type.Object({
     projectId: ProjectId,
-    partId: Type.String(),
     code: Type.String(),
+    part: Type.Optional(
+      Type.String({ description: 'only needed with several Arduinos' }),
+    ),
   }),
-  execute: async ({ projectId, partId, code }) => {
+  execute: async ({ projectId, code, part }) => {
     const project = await loadProject(projectId)
-    const part = project.circuit.parts.find((p) => p.id === partId)
-    if (!part || part.type !== 'arduino-uno')
-      throw new Error(`Part ${partId} is not an arduino-uno`)
+    const p = resolvePart(project.circuit, part ?? 'arduino-uno')
+    if (p.type !== 'arduino-uno') throw new Error(`${p.type} is not an Arduino`)
     const files = {
-      ...(part.files ?? {}),
+      ...(p.files ?? {}),
       'main.ino': { content: code, fileExtension: '.ino', order: 0 },
     }
     const result = await compileSketch(files)
-    part.files = files
-    part.compilationStatus = result.error ? 'error' : 'success'
-    part.compilationOutput = result.error ? result.stderr : result.stdout
-    if (result.data) part.hexFile = result.data
-    await saveCircuit(project, project.circuit)
+    p.files = files
+    p.compilationStatus = result.error ? 'error' : 'success'
+    p.compilationOutput = result.error ? result.stderr : result.stdout
+    if (result.data) p.hexFile = result.data
+    await saveCircuit(project)
     return {
-      status: part.compilationStatus,
+      status: p.compilationStatus,
       output: (result.error ? result.stderr : result.stdout).slice(0, 4000),
     }
   },
@@ -540,12 +528,17 @@ export const simulate = tool({
   name: 'simulate',
   label: 'Simulate',
   description:
-    'Run the circuit with the real engine (same as the Simulate button) for N windows of 50 ms (default 8; use 40+ for sketches with delays or LCD init) and report what happened: LED currents (lit ≈ >2 mA), battery current, resistor power, motor voltage, LCD text lines + backlight, TMP36 output, potentiometer wiper voltage, Arduino serial output, rating errors and SPICE errors. Use after every change to verify it works.',
+    'Run the real engine (same as the Simulate button) for N windows of 50 ms (default 10; use 40+ for sketches with delays or LCD init). Optionally hold buttons pressed. Reports per part (LED mA — lit ≈ >2 mA, resistor W, LCD text, TMP36/pot volts, Arduino serial) plus `problems`: floating pins, LEDs that stay dark, rating errors, SPICE errors. Fix every problem before reporting back.',
   parameters: Type.Object({
     projectId: ProjectId,
     windows: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
+    press: Type.Optional(
+      Type.Array(Type.String(), {
+        description: 'buttons to hold pressed (id prefix/type/alias)',
+      }),
+    ),
   }),
-  execute: async ({ projectId, windows = 8 }) => {
+  execute: async ({ projectId, windows = 10, press = [] }) => {
     const project = await loadProject(projectId)
     const errors: string[] = []
     const warnings: string[] = []
@@ -553,6 +546,10 @@ export const simulate = tool({
       onError: (m) => errors.push(m),
       onWarning: (m) => warnings.push(m),
     })
+    const pressed = press.map((ref) => resolvePart(project.circuit, ref).id)
+    for (const p of circuit.parts)
+      if (p instanceof TactileSwitch && pressed.includes(p.id))
+        p.setPressed(true)
     let n = 0
     await new Promise<void>((resolve) => {
       circuit.events.onWindow = (c) => {
@@ -564,25 +561,27 @@ export const simulate = tool({
       void circuit.start().then(resolve)
     })
     const t = circuit.data.latestTime
+    const problems: string[] = []
     const report = circuit.parts
       .map((p) => {
-        if (p instanceof Led)
-          return {
-            id: p.id,
-            type: p.type,
-            currentMilliamps: +(
-              circuit.data.getAmperage(p.deviceId, t) * 1e3
-            ).toFixed(2),
-          }
+        const id = short(p.id)
+        if (p instanceof Led) {
+          const mA = +(circuit.data.getAmperage(p.deviceId, t) * 1e3).toFixed(2)
+          if (Math.abs(mA) < 1)
+            problems.push(
+              `led ${id} is dark (${mA} mA): no current path — check it is wired + → resistor → supply and − → ground, and the driving pin is HIGH`,
+            )
+          return { id, type: p.type, currentMilliamps: mA }
+        }
         if (p instanceof Battery)
           return {
-            id: p.id,
+            id,
             type: p.type,
             amps: +circuit.data.getAmperage(p.deviceId, t).toFixed(3),
           }
         if (p instanceof Resistor)
           return {
-            id: p.id,
+            id,
             type: p.type,
             voltageDrop: +p.getVoltageAcross('t1', 't2', t).toFixed(3),
             watts: +(
@@ -592,66 +591,75 @@ export const simulate = tool({
           }
         if (p instanceof Motor)
           return {
-            id: p.id,
+            id,
             type: p.type,
             voltageDrop: +p.getVoltageAcross('t1', 't2', t).toFixed(3),
           }
-        if (p instanceof ArduinoUno)
+        if (p instanceof ArduinoUno) {
+          if (!p.hexFile)
+            problems.push(
+              `arduino ${id} has no compiled sketch — call set_arduino_code`,
+            )
           return {
-            id: p.id,
+            id,
             type: p.type,
             serial: p.logs.slice(-2000),
             pin13Volts: +p.getVoltageAcross('~13', 'gnd.1', t).toFixed(2),
           }
+        }
         if (p instanceof Lcd1602 || p instanceof Lcd1602I2c) {
           const snap = p.snapshot
+          const lines = snap.lines.map((l: number[]) =>
+            String.fromCharCode(...l),
+          )
+          if (!snap.displayOn)
+            problems.push(
+              `lcd ${id} never initialised — check VCC/GND/SDA/SCL and the sketch`,
+            )
           return {
-            id: p.id,
+            id,
             type: p.type,
             backlight: snap.backlight,
             displayOn: snap.displayOn,
-            lines: snap.lines.map((l: number[]) => String.fromCharCode(...l)),
+            lines,
           }
         }
         if (p instanceof Tmp36)
           return {
-            id: p.id,
+            id,
             type: p.type,
             temperatureC: p.temperature,
             outputVolts: +p.outputVoltage.toFixed(3),
           }
         if (p instanceof Potentiometer)
-          return {
-            id: p.id,
-            type: p.type,
-            wiperVolts: +p.wiperVoltage.toFixed(3),
-          }
+          return { id, type: p.type, wiperVolts: +p.wiperVoltage.toFixed(3) }
         return null
       })
       .filter(Boolean)
-    // rating checks normally run from the playback clock; evaluate them once at the end
     circuit.clock.setTick(30)
     circuit.clock.setTime(t)
-    const partErrors = circuit.parts.flatMap((p) =>
-      p.errors.map((e) => ({ partId: p.id, ...e })),
-    )
+    for (const p of circuit.parts)
+      for (const e of p.errors)
+        problems.push(`${p.type} ${short(p.id)}: ${e.message}`)
+    for (const f of describeCircuit(project.circuit).floating)
+      problems.push(`${f} is connected to nothing`)
+    problems.push(...errors.map((e) => `spice: ${e}`))
     return {
       simulatedMs: t,
+      pressed: press,
       report,
-      partErrors,
-      spiceErrors: errors,
-      spiceWarnings: warnings.slice(0, 5),
+      problems,
+      spiceWarnings: warnings.slice(0, 3),
     }
   },
 })
 
 export const bulbusTools: AgentTool[] = [
   getProject,
-  listPartTypes,
   addPart,
-  updatePart,
-  removePart,
-  addWire,
+  connect,
+  setProperty,
+  remove,
   setArduinoCode,
   simulate,
 ]

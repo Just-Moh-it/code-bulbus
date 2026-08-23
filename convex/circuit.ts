@@ -102,6 +102,13 @@ export const get = query({
 export const apply = mutation({
   args: opsValidator,
   handler: async (ctx, args) => {
+    if (args.removeParts?.length || args.removeWires?.length)
+      console.log(
+        'apply remove',
+        args.projectId,
+        args.removeParts,
+        args.removeWires,
+      )
     await applyOps(ctx, args)
   },
 })

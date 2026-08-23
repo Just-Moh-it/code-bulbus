@@ -151,14 +151,23 @@ browser ──observe (read-only)──▶ coordinator :4437 ◀──webhook wa
 
 - `bun run agents:runtime` starts Postgres + Electric + the coordinator in Docker;
   `bun run agents:server` runs our entity server (needs `ANTHROPIC_API_KEY`).
-- Tools (`agents/tools.ts`) load the circuit through `circuit.get`, edit the
-  JSON, and save `diff(loaded, edited)` through `circuit.apply` — the same
-  entity-level ops the browser sends, so an open editor shows the change live
-  and a part the user is editing at the same time is never clobbered. Every
-  tool call must go through `get_project` → edit → `simulate` so the agent
-  verifies its own work with the real engine (headless `Circuit`).
-- Part placement by tools mirrors snapping: the part is positioned so its first
-  connected terminal sits on the parent's named hole (`placeOnParent`).
+- **The agent speaks parts and nets, never holes or coordinates**
+  (`agents/tools.ts` + `agents/layout.ts`). `add_part(type)` is placed by a
+  packer that mirrors the editor's snapping (every leg in a free hole, one part
+  per strip, no footprint overlap, four rotations tried); `connect(a, b)` picks
+  free holes on the two nets (computed with the simulator's own
+  `Circuit.assignNodes()`, wires unioned) and routes the wire around part
+  bodies; `get_project`/`simulate` report nets, floating pins and `problems`.
+  Nothing the model says can disagree with the validation because there is no
+  geometry for it to get wrong. Tests: `agents/layout.test.ts`.
+- Tool calls are serialised per project (`withProjectLock`): the model emits
+  several calls per step and the runtime runs them concurrently; each tool is
+  load → edit → save, so unserialised calls would place parts on top of each
+  other.
+- Removing a part also removes jumpers that only served it
+  (`danglingWires`), so its strips come back clean.
+- Tools save `diff(baseline, edited)` through `circuit.apply`, the same
+  entity-level ops the browser sends, so open editors update live.
 - The membership stream's collections are runtime proxies (`toArray`), not
   TanStack `Collection`s — read them directly; `useChat(db)` handles the chat.
 
