@@ -15,3 +15,14 @@ localhost:8444 {
 	tls internal
 	reverse_proxy localhost:4437
 }
+
+# Single public origin for a tunnel (ngrok / cloudflared → :8446):
+#   /agents/* -> electric coordinator, everything else -> vite
+:8446 {
+	handle_path /agents/* {
+		reverse_proxy localhost:4437
+	}
+	handle {
+		reverse_proxy localhost:3005
+	}
+}

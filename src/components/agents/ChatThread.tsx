@@ -46,7 +46,14 @@ import type { ComposerSubmit } from './ChatComposer'
 import { cn } from '#/lib/utils.ts'
 
 /** Coordinator URL the browser observes directly (server routes handle writes). */
-const AGENTS_URL = import.meta.env.VITE_AGENTS_URL ?? 'http://localhost:4437'
+// On localhost the coordinator is its own origin (VITE_AGENTS_URL); behind a
+// tunnel / real domain everything is one origin and Caddy mounts it at /agents.
+const isLocal =
+  typeof window !== 'undefined' &&
+  /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+const AGENTS_URL = isLocal
+  ? (import.meta.env.VITE_AGENTS_URL ?? 'http://localhost:4437')
+  : `${window.location.origin}/agents`
 let client: AgentsClient | null = null
 export function agentsClient() {
   client ??= createAgentsClient({ baseUrl: AGENTS_URL })
