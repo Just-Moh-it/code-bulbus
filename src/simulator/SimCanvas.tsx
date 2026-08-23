@@ -201,9 +201,11 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
             </ScaledGroup>
           </Suspense>
         </group>
-        {part.terminals.map((t) => (
-          <VoltageLabel key={t.name} terminal={t} />
-        ))}
+        {/* only parts that show voltages get per-terminal labels: a breadboard
+            alone has 830 terminals, and a React component + useFrame per hole
+            is most of the frame budget */}
+        {part.showVoltages &&
+          part.terminals.map((t) => <VoltageLabel key={t.name} terminal={t} />)}
       </group>
       {part.errors.length > 0 && <ErrorMarker part={part} />}
       <SelectionBox part={part} target={boxRef} />
@@ -350,8 +352,12 @@ function ClockBadge({ simulator }: { simulator: Simulator }) {
   useEffect(
     () =>
       simulator.circuit.clock.onChange(() => {
-        if (ref.current)
-          ref.current.innerText = `Clock: ${(simulator.circuit.clock.time / 1000).toFixed(2)}s`
+        if (!ref.current) return
+        const { clock, stats } = simulator.circuit
+        const perf = window.location.search.includes('perf')
+        ref.current.innerText = perf
+          ? `Clock: ${(clock.time / 1000).toFixed(2)}s · spice ${stats.spice.toFixed(0)}ms · mcu ${stats.mcu.toFixed(0)}ms · window ${stats.window.toFixed(0)}ms · rate ${clock.rate.toFixed(2)}`
+          : `Clock: ${(clock.time / 1000).toFixed(2)}s`
       }),
     [simulator],
   )
@@ -379,7 +385,6 @@ const Scene = observer(function Scene({ simulator }: { simulator: Simulator }) {
   const circuit = simulator.circuit
   return (
     <Canvas
-      shadows
       onCreated={({ raycaster }) => {
         raycaster.params.Line.threshold = 0.15
       }}
