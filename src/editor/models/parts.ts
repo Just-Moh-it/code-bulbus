@@ -326,7 +326,16 @@ export class ArduinoUnoPart extends EditorPart {
   get terminalDefinitions() {
     return defs.arduinoUnoTerminals
   }
-  // reference: files are NOT restored by undo
+  // Deviation from the reference (which kept files out of undo): sync requires
+  // loadJSON ∘ toJSON to be the identity, otherwise the outbound diff treats the
+  // unapplied fields as local edits and writes stale code back to the server.
+  loadJSON(j: PartJSON) {
+    super.loadJSON(j)
+    if (j.files) this.files = j.files
+    this.hexFile = j.hexFile ?? ''
+    this.compilationStatus = j.compilationStatus ?? 'not-compiled'
+    this.compilationOutput = j.compilationOutput ?? ''
+  }
   toJSON() {
     return {
       ...super.toJSON(),
@@ -390,6 +399,7 @@ export class EightPinChipPart extends EditorPart {
   }
   loadJSON(j: PartJSON) {
     super.loadJSON(j)
+    this.subcktCode = j.subcktCode ?? ''
     if (j.chipName !== undefined) this.chipName = j.chipName
     if (j.pinLabels !== undefined) this.pinLabels = j.pinLabels
   }

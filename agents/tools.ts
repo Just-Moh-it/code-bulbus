@@ -24,9 +24,20 @@ import type {
 import { partManagers, LED_COLORS, WIRE_COLORS } from '#/editor/models'
 import type { EditorPart } from '#/editor/models'
 import { compileSketch } from '#/server/compile'
-import { PALETTE, defaultProject } from '#/lib/projects'
+import { PALETTE } from '#/lib/projects'
 import { diffCircuit, isEmptyOps } from '#/editor/sync/diff'
-import { ArduinoUno, Battery, Circuit, Led, Motor, Resistor } from '#/sim'
+import {
+  ArduinoUno,
+  Battery,
+  Circuit,
+  Lcd1602,
+  Lcd1602I2c,
+  Led,
+  Motor,
+  Potentiometer,
+  Resistor,
+  Tmp36,
+} from '#/sim'
 
 const CONVEX_URL = process.env.VITE_CONVEX_URL
 if (!CONVEX_URL) throw new Error('VITE_CONVEX_URL is not set (see .env.local)')
@@ -84,6 +95,10 @@ const TERMINALS: Partial<
   [PartType.NpnTransistor]: defs.npnTerminals,
   [PartType.PnpTransistor]: defs.pnpTerminals,
   [PartType.Capacitor]: defs.capacitorTerminals,
+  [PartType.Lcd1602]: defs.lcd1602Terminals,
+  [PartType.Lcd1602I2c]: defs.lcd1602I2cTerminals,
+  [PartType.Potentiometer]: defs.potentiometerTerminals,
+  [PartType.Tmp36]: defs.tmp36Terminals,
   [PartType.Timer]: defs.timerTerminals,
   [PartType.ArduinoUno]: defs.arduinoUnoTerminals,
   [PartType.Motor]: defs.motorTerminals,
@@ -250,23 +265,6 @@ const ProjectId = Type.String({
 })
 
 // ------------------------------------------------------------------- tools
-export const listProjects = tool({
-  name: 'list_projects',
-  label: 'List projects',
-  description: 'List all bulbus projects (id, name, part counts).',
-  parameters: Type.Object({}),
-  execute: async () => {
-    const rows = (await convex.query(api.projects.list, {})) as ProjectJSON[]
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      parts: r.circuit.parts.length,
-      wires: r.circuit.wires.length,
-      created_at: r.created_at,
-    }))
-  },
-})
-
 export const getProject = tool({
   name: 'get_project',
   label: 'Get project',
@@ -542,10 +540,10 @@ export const simulate = tool({
   name: 'simulate',
   label: 'Simulate',
   description:
-    'Run the circuit headlessly for N windows of 50 ms (default 8) and report what happened: LED currents (lit ≈ >2 mA), battery/Arduino current, resistor power, motor speed, Arduino serial output, rating errors and SPICE errors. Use after every change to verify it works.',
+    'Run the circuit with the real engine (same as the Simulate button) for N windows of 50 ms (default 8; use 40+ for sketches with delays or LCD init) and report what happened: LED currents (lit ≈ >2 mA), battery current, resistor power, motor voltage, LCD text lines + backlight, TMP36 output, potentiometer wiper voltage, Arduino serial output, rating errors and SPICE errors. Use after every change to verify it works.',
   parameters: Type.Object({
     projectId: ProjectId,
-    windows: Type.Optional(Type.Integer({ minimum: 1, maximum: 40 })),
+    windows: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
   }),
   execute: async ({ projectId, windows = 8 }) => {
     const project = await loadProject(projectId)
@@ -605,6 +603,29 @@ export const simulate = tool({
             serial: p.logs.slice(-2000),
             pin13Volts: +p.getVoltageAcross('~13', 'gnd.1', t).toFixed(2),
           }
+        if (p instanceof Lcd1602 || p instanceof Lcd1602I2c) {
+          const snap = p.snapshot
+          return {
+            id: p.id,
+            type: p.type,
+            backlight: snap.backlight,
+            displayOn: snap.displayOn,
+            lines: snap.lines.map((l: number[]) => String.fromCharCode(...l)),
+          }
+        }
+        if (p instanceof Tmp36)
+          return {
+            id: p.id,
+            type: p.type,
+            temperatureC: p.temperature,
+            outputVolts: +p.outputVoltage.toFixed(3),
+          }
+        if (p instanceof Potentiometer)
+          return {
+            id: p.id,
+            type: p.type,
+            wiperVolts: +p.wiperVoltage.toFixed(3),
+          }
         return null
       })
       .filter(Boolean)
@@ -624,29 +645,7 @@ export const simulate = tool({
   },
 })
 
-export const createProject = tool({
-  name: 'create_project',
-  label: 'Create project',
-  description:
-    'Create a new project from the blank template (breadboard + 9 V battery wired to the top rails). Returns its id and URL.',
-  parameters: Type.Object({ name: Type.Optional(Type.String()) }),
-  execute: async ({ name }) => {
-    const p = defaultProject(crypto.randomUUID())
-    if (name) p.name = name
-    await convex.mutation(api.projects.create, {
-      id: p.id,
-      name: p.name,
-      user_id: null,
-      parent_id: null,
-      parts: p.circuit.parts,
-      wires: p.circuit.wires,
-    })
-    return { id: p.id, url: `/projects/${p.id}` }
-  },
-})
-
 export const bulbusTools: AgentTool[] = [
-  listProjects,
   getProject,
   listPartTypes,
   addPart,
@@ -655,5 +654,4 @@ export const bulbusTools: AgentTool[] = [
   addWire,
   setArduinoCode,
   simulate,
-  createProject,
 ]
