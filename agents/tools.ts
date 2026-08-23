@@ -134,8 +134,42 @@ function resolvePart(circuit: CircuitJSON, ref: string): PartJSON {
   )
 }
 
+/** Names the model is likely to use for pins, per type (datasheet numbers, polarity words). */
+const TERMINAL_ALIASES: Partial<Record<PartTypeT, Record<string, string>>> = {
+  'tactile-switch': { a: '1', b: '3' },
+  timer: {
+    '1': 'ground',
+    '2': 'trigger',
+    '3': 'output',
+    '4': 'reset',
+    '5': 'control',
+    '6': 'threshold',
+    '7': 'discharge',
+    '8': 'vcc',
+    gnd: 'ground',
+    out: 'output',
+    thr: 'threshold',
+    trig: 'trigger',
+    dis: 'discharge',
+    ctrl: 'control',
+    cv: 'control',
+    rst: 'reset',
+  },
+  capacitor: {
+    '+': 'anode',
+    '-': 'cathode',
+    pos: 'anode',
+    neg: 'cathode',
+    '1': 'anode',
+    '2': 'cathode',
+  },
+  led: { anode: '+', cathode: '-', a: '+', k: '-', plus: '+', minus: '-' },
+  resistor: { '1': 't1', '2': 't2', a: 't1', b: 't2' },
+  battery: { plus: '+', minus: '-', pos: '+', neg: '-', vcc: '+', gnd: '-' },
+  potentiometer: { '2': 'wiper', w: 'wiper' },
+  'arduino-uno': { d13: '~13', d2: '2', gnd: 'gnd.1' },
+}
 /** A tactile switch has two contacts, each with two pins (1=2, 3=4). The agent only ever sees sides a and b. */
-const SWITCH_SIDES: Record<string, string> = { a: '1', b: '3' }
 const switchSide = (pin: string) => (pin === '1' || pin === '2' ? 'a' : 'b')
 
 /** Resolve a terminal name on a part, tolerating "13" for "~13", "gnd" for "gnd.1", case. */
@@ -143,8 +177,7 @@ function resolveTerminal(part: PartJSON, name: string): string {
   const defsOf = terminalDefs(part)
   const names = defsOf.map((d) => d.name)
   let key = name.trim()
-  if (part.type === 'tactile-switch')
-    key = SWITCH_SIDES[key.toLowerCase()] ?? key
+  key = TERMINAL_ALIASES[part.type]?.[key.toLowerCase()] ?? key
   const exact =
     names.find((n) => n === key) ??
     names.find((n) => n.toLowerCase() === key.toLowerCase())
@@ -245,6 +278,12 @@ function applyProperties(part: PartJSON, props: Record<string, unknown>) {
   }
 }
 
+const label = (m: { partId: string; type: string; terminal: string }) =>
+  m.type === 'breadboard'
+    ? `breadboard.${m.terminal}`
+    : `${m.type}:${short(m.partId)}.${m.type === 'tactile-switch' ? switchSide(m.terminal) : m.terminal}`
+const labels = (n: NetMember[]) => [...new Set(n.map(label))]
+
 /** "on 0.0–4.9s, off 4.9–10.0s" from per-window booleans. */
 function intervals(samples: boolean[], windowMs: number) {
   const out: string[] = []
@@ -285,11 +324,21 @@ function describeCircuit(circuit: CircuitJSON) {
         placed,
       }
     })
-  const label = (m: { partId: string; type: string; terminal: string }) =>
-    m.type === 'breadboard'
-      ? `breadboard.${m.terminal}`
-      : `${m.type}:${short(m.partId)}.${m.type === 'tactile-switch' ? switchSide(m.terminal) : m.terminal}`
-  const labels = (n: NetMember[]) => [...new Set(n.map(label))]
+  // what each power rail is tied to — a blank board powers only rail "a"
+  const rails = Object.fromEntries(
+    ['positive.a', 'negative.a', 'positive.b', 'negative.b'].map((rail) => {
+      const net = nets(circuit).find((n) =>
+        n.some((m) => m.type === 'breadboard' && m.terminal === rail),
+      )
+      const others = net
+        ? labels(net).filter((l) => l !== `breadboard.${rail}`)
+        : []
+      return [
+        rail,
+        others.length ? others.join(', ') : 'NOT connected to anything',
+      ]
+    }),
+  )
   const pins = (n: NetMember[]) => n.filter((m) => m.type !== 'breadboard')
   // unused pins of a microcontroller are normal, not a problem
   const HOSTS = new Set(['arduino-uno', 'raspberry-pi'])
@@ -299,7 +348,13 @@ function describeCircuit(circuit: CircuitJSON) {
   const floating = all
     .filter((n) => pins(n).length === 1 && !HOSTS.has(pins(n)[0].type))
     .map((n) => label(pins(n)[0]))
-  return { parts, nets: connected, floating, wires: circuit.wires.length }
+  return {
+    parts,
+    rails,
+    nets: connected,
+    floating,
+    wires: circuit.wires.length,
+  }
 }
 
 /**
@@ -455,7 +510,7 @@ export function bulbusTools(projectId: string): AgentTool[] {
       c.wires.push(plan.wire)
       await saveCircuit(project)
       // everything now on this net — so an unintended passenger (an old link) is visible immediately
-      const { nets: after } = describeCircuit(c)
+      const after = nets(c).map(labels)
       const key = (r: { part: PartJSON; terminal: string }) =>
         `${r.part.type}:${short(r.part.id)}.${r.part.type === 'tactile-switch' ? switchSide(r.terminal) : r.terminal}`
       const net = after.find((n) => n.includes(key(ra))) ?? []
