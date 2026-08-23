@@ -14,7 +14,8 @@ import type { EditorPart, EditorProject, StampType } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 import { ArduinoUno, Potentiometer, Tmp36 } from '#/sim'
 
-const PANEL = 'hidden h-full min-h-0 w-64 shrink-0 flex-col bg-card md:flex'
+const PANEL =
+  'pointer-events-auto flex h-full min-h-0 w-64 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm'
 
 // ------------------------------------------------------------ icon buttons
 const IconBtn = ({
@@ -307,7 +308,7 @@ export const EditorLeftPanel = observer(function EditorLeftPanel({
 }) {
   const part = project.selection
   return (
-    <aside className={`${PANEL} border-r border-border`}>
+    <aside className={PANEL}>
       {part ? (
         <SelectionPanel project={project} part={part} />
       ) : (
@@ -388,7 +389,7 @@ export const SimLeftPanel = observer(function SimLeftPanel({
   const [, force] = useForceTick(simulator, 30)
   void force
   return (
-    <aside className={`${PANEL} border-r border-border`}>
+    <aside className={PANEL}>
       {part ? (
         <div className="flex flex-1 flex-col overflow-y-auto">
           <BackHeader

@@ -73,7 +73,14 @@ function useChats(projectId: string) {
  * Right-hand chat, ChatGPT-style: one conversation at a time, a history menu
  * for the others, "new chat" creates the entity lazily on the first message.
  */
-export function AgentsPanel({ projectId }: { projectId: string }) {
+export function AgentsPanel({
+  projectId,
+  action,
+}: {
+  projectId: string
+  /** Rendered at the right of the header (the Simulate control). */
+  action?: React.ReactNode
+}) {
   const chats = useChats(projectId)
   const [selected, setSelected] = useState<string | null>(null)
   const current = chats.find((c) => c.url === selected) ?? null
@@ -103,7 +110,7 @@ export function AgentsPanel({ projectId }: { projectId: string }) {
   }
 
   return (
-    <aside className="hidden h-full min-h-0 w-96 shrink-0 flex-col border-l border-border bg-card md:flex">
+    <aside className="pointer-events-auto flex h-full min-h-0 w-96 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm">
       <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border pr-1.5 pl-3">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {title}
@@ -170,6 +177,9 @@ export function AgentsPanel({ projectId }: { projectId: string }) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+          {action && (
+            <span className="ml-1 pl-1.5 border-l border-border">{action}</span>
           )}
         </div>
       </header>

@@ -8,7 +8,7 @@ import { api } from '../../../convex/_generated/api'
 import { ArduinoUnoPart, EditorProject } from '#/editor/models'
 import { ProjectCanvas } from '#/editor/scene/ProjectCanvas'
 import { PartContextMenu } from '#/components/editor/ContextMenu'
-import { EditorNavbar } from '#/components/editor/Navbar'
+import { EditorTopBar, SimulateButton } from '#/components/editor/Navbar'
 import { EditorLeftPanel, SimLeftPanel } from '#/components/editor/Panels'
 import { AgentsPanel } from '#/components/agents/AgentsPanel'
 import { Simulator } from '#/simulator/model'
@@ -102,70 +102,57 @@ function ProjectPage() {
     simulator?.stop()
     setSimulator(null)
   }
-  const fork = async () => {
-    if (!project) return
-    const j = project.toJSON()
-    const newId = crypto.randomUUID()
-    await create({
-      id: newId,
-      name: `${j.name} (fork)`,
-      user_id: j.user_id ?? null,
-      parent_id: project.id,
-      camera: j.camera,
-      parts: j.circuit.parts,
-      wires: j.circuit.wires,
-    })
-    void navigate({ to: '/projects/$id', params: { id: newId } })
-  }
   const del = async () => {
     await remove({ id })
     void navigate({ to: '/' })
   }
 
+  const simulateButton = (
+    <SimulateButton
+      project={project}
+      simulator={simulator}
+      onStartSimulation={startSimulation}
+      onStopSimulation={stopSimulation}
+    />
+  )
+
+  // Islands: the canvas fills the window; every panel floats above it.
   return (
-    <div className="flex h-screen select-none flex-col">
-      <EditorNavbar
-        project={project}
-        simulator={simulator}
-        onStartSimulation={startSimulation}
-        onStopSimulation={stopSimulation}
-        onFork={fork}
-        onDelete={del}
-      />
-      <main className="flex min-h-0 flex-1">
+    <div
+      className="relative h-screen select-none overflow-hidden"
+      style={{ background: CANVAS_BG }}
+    >
+      <div className="absolute inset-0">
         {simulator ? (
           <>
-            <SimLeftPanel simulator={simulator} />
-            <div
-              className="relative min-w-0 flex-1"
-              style={{ background: CANVAS_BG }}
-            >
-              <SimCanvas simulator={simulator} />
-              <SimMessages simulator={simulator} />
-            </div>
+            <SimCanvas simulator={simulator} />
+            <SimMessages simulator={simulator} />
           </>
         ) : (
-          <>
-            {project ? (
-              <EditorLeftPanel project={project} />
-            ) : (
-              <aside className="hidden w-64 shrink-0 border-r border-border bg-white md:block" />
-            )}
-            <div
-              className="relative min-w-0 flex-1"
-              style={{ background: CANVAS_BG }}
-            >
-              {project && (
-                <>
-                  <ProjectCanvas project={project} />
-                  <PartContextMenu project={project} />
-                </>
+          project && (
+            <>
+              <ProjectCanvas project={project} />
+              <PartContextMenu project={project} />
+            </>
+          )
+        )}
+      </div>
+      <div className="pointer-events-none absolute inset-0 hidden p-3 md:block">
+        <div className="flex h-full gap-3">
+          <div className="flex shrink-0 flex-col gap-3">
+            <EditorTopBar project={project} onDelete={del} />
+            <div className="min-h-0 flex-1">
+              {simulator ? (
+                <SimLeftPanel simulator={simulator} />
+              ) : (
+                project && <EditorLeftPanel project={project} />
               )}
             </div>
-            <AgentsPanel projectId={id} />
-          </>
-        )}
-      </main>
+          </div>
+          <div className="flex-1" />
+          <AgentsPanel projectId={id} action={simulateButton} />
+        </div>
+      </div>
     </div>
   )
 }

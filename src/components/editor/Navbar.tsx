@@ -1,24 +1,10 @@
 import { useState } from 'react'
 import { observer } from 'mobx-react-lite'
-import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  Check,
-  Clipboard,
-  Code2,
-  GitFork,
-  MoreHorizontal,
-  Play,
-  Square,
-} from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { MoreHorizontal, Play, Square } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
 import { Kbd } from '#/components/ui/kbd'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '#/components/ui/popover'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,17 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '#/components/ui/dialog'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '#/components/ui/tooltip'
-import { Label } from '#/components/ui/label'
-import { allArduinosCompiled, embedCode, embedUrl } from '#/lib/projects'
+import { allArduinosCompiled } from '#/lib/projects'
 import type { EditorProject } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
-
-export const NAVBAR_H = 'h-11'
 
 /** Logo mark (the reference's `DiodeLogo` is a custom glyph; we use a simple diode symbol). */
 export function Logo({
@@ -116,76 +94,6 @@ export const EditableName = observer(function EditableName({
         }
       }}
     />
-  )
-})
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          size="icon"
-          variant="secondary"
-          className="size-7"
-          aria-label="Copy"
-          onClick={() => {
-            void navigator.clipboard.writeText(value)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1500)
-          }}
-        >
-          {copied ? (
-            <Check className="size-3" />
-          ) : (
-            <Clipboard className="size-3" />
-          )}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{copied ? 'Copied!' : 'Copy'}</TooltipContent>
-    </Tooltip>
-  )
-}
-
-const EmbedPopover = observer(function EmbedPopover({
-  project,
-}: {
-  project: EditorProject | null
-}) {
-  const url = project ? embedUrl(project.id) : ''
-  const code = project ? embedCode(project.id, project.name) : ''
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!project}
-          className="hidden md:inline-flex"
-        >
-          <Code2 className="size-3.5" />
-          Embed
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 py-3">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold">Embed URL</Label>
-            <div className="flex items-center gap-1">
-              <Input className="h-8 text-xs" value={url} readOnly />
-              <CopyButton value={url} />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold">Embed Code</Label>
-            <div className="flex items-center gap-1">
-              <Input className="h-8 text-xs" value={code} readOnly />
-              <CopyButton value={code} />
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
   )
 })
 
@@ -271,25 +179,44 @@ const ProjectMenu = observer(function ProjectMenu({
   )
 })
 
-interface NavbarProps {
+/** Floating top-left island: logo, project name, project menu. */
+export const EditorTopBar = observer(function EditorTopBar({
+  project,
+  onDelete,
+}: {
   project: EditorProject | null
-  simulator: Simulator | null
-  onStartSimulation: () => void
-  onStopSimulation: () => void
-  onFork: () => Promise<void>
   onDelete: () => Promise<void>
-}
+}) {
+  return (
+    <div className="pointer-events-auto flex h-10 items-center gap-2 rounded-md border border-border bg-card px-2 shadow-sm">
+      <Link to="/" className="flex items-center px-1" aria-label="Home">
+        <Logo />
+      </Link>
+      {project && (
+        <>
+          <span className="h-5 w-px bg-border" />
+          <div className="flex items-center gap-1 pl-1">
+            <EditableName project={project} />
+            <ProjectMenu project={project} onDelete={onDelete} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+})
 
-export const EditorNavbar = observer(function EditorNavbar({
+/** Simulate / Stop control, hosted by the right-hand panel header. */
+export const SimulateButton = observer(function SimulateButton({
   project,
   simulator,
   onStartSimulation,
   onStopSimulation,
-  onFork,
-  onDelete,
-}: NavbarProps) {
-  const navigate = useNavigate()
-  void navigate
+}: {
+  project: EditorProject | null
+  simulator: Simulator | null
+  onStartSimulation: () => void
+  onStopSimulation: () => void
+}) {
   const simulate = () => {
     if (!project) return
     if (allArduinosCompiled(project.toJSON().circuit.parts)) onStartSimulation()
@@ -299,62 +226,15 @@ export const EditorNavbar = observer(function EditorNavbar({
         { duration: 3000 },
       )
   }
-  return (
-    <nav
-      className={`relative flex ${NAVBAR_H} w-full shrink-0 items-center border-b border-border bg-card px-3`}
-    >
-      <div className="contents">
-        <Link to="/" className="flex items-center gap-2">
-          <Logo />
-          <span className="text-sm font-semibold tracking-tight">bulbus</span>
-        </Link>
-        <div className="hidden gap-4 px-6 md:flex">
-          <Link
-            to="/explore"
-            className="text-[13px] font-medium text-muted-foreground hover:text-foreground"
-          >
-            Explore
-          </Link>
-        </div>
-        <div className="flex-1" />
-        <div className="flex gap-1.5">
-          <EmbedPopover project={project} />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!project}
-            className="hidden md:inline-flex"
-            onClick={() => void onFork()}
-          >
-            <GitFork className="size-3.5" />
-            Fork
-          </Button>
-          {simulator ? (
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={onStopSimulation}
-              disabled={!project}
-            >
-              <Square className="size-3.5" />
-              Stop
-            </Button>
-          ) : (
-            <Button size="sm" disabled={!project} onClick={simulate}>
-              <Play className="size-3.5" />
-              Simulate
-            </Button>
-          )}
-        </div>
-        <div className="absolute left-1/2 -translate-x-1/2">
-          {project && (
-            <div className="flex items-center gap-1">
-              <EditableName project={project} />
-              <ProjectMenu project={project} onDelete={onDelete} />
-            </div>
-          )}
-        </div>
-      </div>
-    </nav>
+  return simulator ? (
+    <Button size="sm" variant="destructive" onClick={onStopSimulation}>
+      <Square className="size-3.5" />
+      Stop
+    </Button>
+  ) : (
+    <Button size="sm" disabled={!project} onClick={simulate}>
+      <Play className="size-3.5" />
+      Simulate
+    </Button>
   )
 })
