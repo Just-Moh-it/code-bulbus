@@ -445,23 +445,19 @@ void loop() {
     ],
 
     [
-      'Wine Cellar Guard',
-      'Keeps bottles at cellar temperature; warns when too warm or too cold',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-void loop() {
-  float t = readC();
-  int target = dial(10, 16);
-  bool warm = t > target + 1.5, cold = t < target - 1.5;
-  digitalWrite(LED1, !warm && !cold); digitalWrite(LED2, warm); digitalWrite(LED3, cold);
-  lcd.setCursor(0, 0); lcd.print("Cellar "); lcd.print(t, 1); lcd.print("C     ");
-  lcd.setCursor(0, 1); lcd.print(warm ? "Too warm  " : cold ? "Too cold  " : "Perfect   "); lcd.print("set"); lcd.print(target);
-  delay(200);
-}
-`,
-          { temp: 13, leds: ['green', 'yellow', 'blue'] },
-        ).done(id, name),
+      'Traffic Light',
+      'Red, amber and green on a real intersection cycle',
+      (id, name) => {
+        const b = new Build(`const int RED = 8, AMBER = 9, GREEN = 10;
+void setup() { pinMode(RED, OUTPUT); pinMode(AMBER, OUTPUT); pinMode(GREEN, OUTPUT); }
+void show(bool r, bool a, bool g, int ms) { digitalWrite(RED, r); digitalWrite(AMBER, a); digitalWrite(GREEN, g); delay(ms); }
+void loop() { show(1, 0, 0, 4000); show(1, 1, 0, 1000); show(0, 0, 1, 4000); show(0, 1, 0, 1500); show(1, 0, 0, 1000); }
+`)
+        b.led('8', 20, 'red')
+        b.led('~9', 27, 'yellow')
+        b.led('~10', 34, 'green')
+        return b.done(id, name)
+      },
     ],
   ]
 
