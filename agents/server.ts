@@ -14,7 +14,6 @@ import {
   createEntityRegistry,
   createRuntimeHandler,
 } from '@electric-ax/agents-runtime'
-import type { AgentConfig } from '@electric-ax/agents-runtime'
 import { activity, bulbusTools, resetActivity } from './tools'
 
 /** How many times the critic sends the model back after it stops with unresolved problems. */
