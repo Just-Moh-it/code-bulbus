@@ -160,6 +160,14 @@ browser ──observe (read-only)──▶ coordinator :4437 ◀──webhook wa
   bodies; `get_project`/`simulate` report nets, floating pins and `problems`.
   Nothing the model says can disagree with the validation because there is no
   geometry for it to get wrong. Tests: `agents/layout.test.ts`.
+- The reference grammar the tools *print* is the grammar they *accept*:
+  `type:id.pin`, `type.id.pin`, `id.pin`, `type.pin`, plus per-type aliases
+  (555 datasheet numbers, `+`/`-` on capacitors, `anode`/`cathode` on LEDs,
+  switch sides `a`/`b`). Tools are bound to their project — no `projectId`
+  parameter for the model to retype.
+- After the model stops, a deterministic critic (`agents/server.ts`) checks the
+  wake's activity: edited but never simulated, simulated before the last edit,
+  or `problems` still non-empty → it is sent back to work (max 2 rounds).
 - Tool calls are serialised per project (`withProjectLock`): the model emits
   several calls per step and the runtime runs them concurrently; each tool is
   load → edit → save, so unserialised calls would place parts on top of each

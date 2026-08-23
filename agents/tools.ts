@@ -142,7 +142,11 @@ const TYPE_ALIASES: Record<string, PartTypeT[]> = {
 
 /** Resolve "<id-prefix | type | alias>" to one non-wire part. */
 function resolvePart(circuit: CircuitJSON, ref: string): PartJSON {
-  const key = ref.trim().toLowerCase()
+  // "type:id" (how the tools print parts) → the id decides
+  const key = ref
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z0-9-]+:/, '')
   const parts = circuit.parts.filter((p) => p.type !== 'wire-end')
   const byId = parts.filter((p) => p.id.toLowerCase().startsWith(key))
   if (byId.length === 1) return byId[0]
