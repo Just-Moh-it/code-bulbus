@@ -245,6 +245,21 @@ function applyProperties(part: PartJSON, props: Record<string, unknown>) {
   }
 }
 
+/** "on 0.0–4.9s, off 4.9–10.0s" from per-window booleans. */
+function intervals(samples: boolean[], windowMs: number) {
+  const out: string[] = []
+  let start = 0
+  for (let i = 1; i <= samples.length; i++) {
+    if (i === samples.length || samples[i] !== samples[start]) {
+      out.push(
+        `${samples[start] ? 'on' : 'off'} ${((start * windowMs) / 1000).toFixed(1)}–${((i * windowMs) / 1000).toFixed(1)}s`,
+      )
+      start = i
+    }
+  }
+  return out.join(', ')
+}
+
 /** The circuit as the agent should see it: parts with their editable state, nets, and floating pins. */
 function describeCircuit(circuit: CircuitJSON) {
   const parts = circuit.parts
@@ -358,13 +373,21 @@ export function bulbusTools(projectId: string): AgentTool[] {
       'Add a part; it is placed automatically (on the breadboard, or on the table for arduino-uno/battery/motor). Returns its id and pin names — then use connect() to wire it. Types: arduino-uno, breadboard, battery, resistor (kohm), led (color), tactile-switch (sides a and b; pressing joins them), capacitor, npn-transistor, pnp-transistor, motor, timer (555), 8-pin-chip, lcd1602-i2c (i2cAddress 0x27), lcd1602, potentiometer (pins 1, wiper, 3), tmp36 (vs, vout, gnd).',
     parameters: Type.Object({
       type: Type.String(),
+      column: Type.Optional(
+        Type.Integer({
+          minimum: 1,
+          maximum: 60,
+          description:
+            'breadboard column to start looking for space at (1–63); use it to spread parts across the board',
+        }),
+      ),
       properties: Type.Optional(
         Type.Record(Type.String(), Type.Unknown(), {
           description: 'e.g. {"kohm":0.22}, {"color":"Crimson"}, {"voltage":9}',
         }),
       ),
     }),
-    execute: async ({ type, properties }, projectId) => {
+    execute: async ({ type, column, properties }, projectId) => {
       const key = type.trim().toLowerCase()
       const resolved = isPartType(key) ? key : TYPE_ALIASES[key]?.[0]
       if (!resolved || !isPartType(resolved))
@@ -392,7 +415,7 @@ export function bulbusTools(projectId: string): AgentTool[] {
             'No breadboard in the project — add_part("breadboard") first',
           )
         part.parentId = board.id
-        placeOnBoard(circuit, part, board)
+        placeOnBoard(circuit, part, board, column)
       }
       circuit.parts.push(part)
       await saveCircuit(project)
@@ -560,13 +583,23 @@ export function bulbusTools(projectId: string): AgentTool[] {
     name: 'simulate',
     label: 'Simulate',
     description:
-      'Run the real engine (same as the Simulate button) for N windows of 50 ms (default 10; use 40+ for sketches with delays or LCD init). Optionally hold buttons pressed. Reports per part (LED mA — lit ≈ >2 mA, resistor W, LCD text, TMP36/pot volts, Arduino serial) plus `problems`: floating pins, LEDs that stay dark, rating errors, SPICE errors. Fix every problem before reporting back.',
+      'Run the real engine (same as the Simulate button) for N windows of 50 ms (default 10; use 40+ for sketches with delays or LCD init, 200 = 10 s). Buttons can be held or tapped for N ms; LEDs report an on/off timeline. Reports per part (LED mA — lit ≈ >2 mA, resistor W, LCD text, TMP36/pot volts, Arduino serial) plus `problems`: floating pins, LEDs that stay dark, rating errors, SPICE errors. Fix every problem before reporting back.',
     parameters: Type.Object({
       windows: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
       press: Type.Optional(
-        Type.Array(Type.String(), {
-          description: 'buttons to hold pressed (id prefix/type/alias)',
-        }),
+        Type.Array(
+          Type.Union([
+            Type.String(),
+            Type.Object({
+              part: Type.String(),
+              ms: Type.Number({ description: 'hold this long, then release' }),
+            }),
+          ]),
+          {
+            description:
+              'buttons to press: "button" holds it for the whole run; {part:"button", ms:300} taps it — use that to test one-shot circuits',
+          },
+        ),
       ),
     }),
     execute: async ({ windows = 10, press = [] }, projectId) => {
@@ -577,13 +610,20 @@ export function bulbusTools(projectId: string): AgentTool[] {
         onError: (m) => errors.push(m),
         onWarning: (m) => warnings.push(m),
       })
-      const pressed = press.map((ref) => resolvePart(project.circuit, ref).id)
+      const presses = press.map((x) =>
+        typeof x === 'string'
+          ? { id: resolvePart(project.circuit, x).id, ms: Infinity }
+          : { id: resolvePart(project.circuit, x.part).id, ms: x.ms },
+      )
+      const pressed = presses.map((x) => x.id)
       for (const p of circuit.parts)
         if (p instanceof TactileSwitch && pressed.includes(p.id))
           p.setPressed(true)
       const unpressed = circuit.parts
         .filter((p) => p instanceof TactileSwitch && !pressed.includes(p.id))
         .map((p) => short(p.id))
+      /** per-LED on/off per window, summarised as intervals so a pulse reads as "on 0–4.9s, off after" */
+      const ledOn = new Map<string, boolean[]>()
       // sample every window so blinking outputs are judged by their peak, not by the last instant
       const peakMilliamps = new Map<string, number>()
       const peakPin13 = new Map<string, number>()
@@ -592,12 +632,17 @@ export function bulbusTools(projectId: string): AgentTool[] {
         circuit.events.onWindow = (c) => {
           const now = c.data.latestTime
           for (const p of c.parts) {
+            if (p instanceof TactileSwitch) {
+              const hold = presses.find((x) => x.id === p.id)
+              if (hold && now >= hold.ms) p.setPressed(false)
+            }
             if (p instanceof Led) {
               const mA = Math.abs(c.data.getAmperage(p.deviceId, now) * 1e3)
               peakMilliamps.set(
                 p.id,
                 Math.max(peakMilliamps.get(p.id) ?? 0, mA),
               )
+              ledOn.set(p.id, [...(ledOn.get(p.id) ?? []), mA >= 1])
             }
             if (p instanceof ArduinoUno) {
               const v = p.getVoltageAcross('~13', 'gnd.1', now)
@@ -633,6 +678,10 @@ export function bulbusTools(projectId: string): AgentTool[] {
               type: p.type,
               currentMilliamps: mA,
               peakMilliamps: peak,
+              timeline: intervals(
+                ledOn.get(p.id) ?? [],
+                t / (ledOn.get(p.id)?.length || 1),
+              ),
             }
           }
           if (p instanceof Battery)

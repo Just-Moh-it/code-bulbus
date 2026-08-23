@@ -230,6 +230,7 @@ export function placeOnBoard(
   circuit: CircuitJSON,
   part: PartJSON,
   board: PartJSON,
+  startColumn = 3,
 ) {
   if (!manager(part.type).eligibleParents.has(board.type))
     throw new Error(`${part.type} cannot be placed on a ${board.type}`)
@@ -243,7 +244,7 @@ export function placeOnBoard(
     .map((p) => footprint(p, 0.5 * mg))
   const anchor = own[0]
   const rotations = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]
-  for (const hole of stripHoles(3)) {
+  for (const hole of stripHoles(startColumn)) {
     for (const rot of rotations) {
       const l = landing(part, board, anchor, hole, rot)
       if (l.terminals.some((t) => t.connections.length === 0)) continue
