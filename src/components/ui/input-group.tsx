@@ -60,7 +60,7 @@ function InputGroupButton({
       data-size={size}
       variant={variant}
       size={size}
-      className={cn('rounded-full shadow-none', className)}
+      className={cn('rounded-sm shadow-none', className)}
       {...props}
     />
   )

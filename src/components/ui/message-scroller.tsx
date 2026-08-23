@@ -85,7 +85,7 @@ function MessageScrollerButton({
         className,
       )}
       render={
-        <Button variant="secondary" size="icon-sm" className="rounded-full" />
+        <Button variant="secondary" size="icon-sm" className="rounded-sm" />
       }
       {...props}
     >

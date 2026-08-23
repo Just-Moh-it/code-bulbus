@@ -159,7 +159,7 @@ export function ChatComposer({
       />
 
       {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm text-primary backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-background/80 text-sm text-primary backdrop-blur-sm">
           Drop files to attach
         </div>
       )}
@@ -205,7 +205,7 @@ export function ChatComposer({
         </AttachmentGroup>
       )}
 
-      <InputGroup className="rounded-2xl shadow-sm">
+      <InputGroup className="rounded-md">
         <InputGroupTextarea
           ref={textareaRef}
           aria-label="Message bulbus"

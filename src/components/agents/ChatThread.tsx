@@ -205,7 +205,7 @@ function UserAttachments({
             key={a.id}
             src={src}
             alt={a.filename ?? 'Attachment'}
-            className="max-h-48 max-w-full rounded-xl object-contain"
+            className="max-h-48 max-w-full rounded-sm object-contain"
           />
         ) : (
           <a
@@ -213,7 +213,7 @@ function UserAttachments({
             href={src}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 rounded-lg border border-border/80 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-2 rounded-sm border border-border/80 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <FileIcon className="size-4" />
             {a.filename ?? 'Attachment'}
@@ -409,7 +409,7 @@ export function ChatThread({
                             {section.error && (
                               <div
                                 role="alert"
-                                className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                                className="rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
                               >
                                 {section.error}
                               </div>

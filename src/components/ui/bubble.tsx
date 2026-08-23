@@ -59,7 +59,7 @@ function BubbleContent({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="bubble-content"
       className={cn(
-        'w-fit min-w-0 max-w-full overflow-hidden rounded-xl border border-transparent px-3 py-2 text-sm leading-relaxed wrap-break-word group-data-[align=end]/bubble:self-end',
+        'w-fit min-w-0 max-w-full overflow-hidden rounded-md border border-transparent px-3 py-2 text-sm leading-relaxed wrap-break-word group-data-[align=end]/bubble:self-end',
         className,
       )}
       {...props}
