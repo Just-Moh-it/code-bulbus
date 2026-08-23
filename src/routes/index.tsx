@@ -51,7 +51,12 @@ export function ProjectCard({
     >
       <div className="aspect-[16/10] overflow-hidden border-b border-border bg-muted">
         {preview && (
-          <img src={preview} alt={name} className="size-full object-cover" />
+          <img
+            src={preview}
+            alt={name}
+            loading="lazy"
+            className="size-full object-cover"
+          />
         )}
       </div>
       <div className="flex items-center justify-between px-3 py-2">
@@ -65,7 +70,8 @@ export function ProjectCard({
 export function ProjectGrid({
   projects,
 }: {
-  projects: { id: string; name: string }[] | undefined
+  projects:
+    { id: string; name: string; previewUrl?: string | null }[] | undefined
 }) {
   if (!projects)
     return (
@@ -80,7 +86,12 @@ export function ProjectGrid({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {projects.map((p) => (
-        <ProjectCard key={p.id} id={p.id} name={p.name} />
+        <ProjectCard
+          key={p.id}
+          id={p.id}
+          name={p.name}
+          preview={p.previewUrl}
+        />
       ))}
     </div>
   )

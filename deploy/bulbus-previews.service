@@ -1,0 +1,15 @@
+[Unit]
+Description=bulbus preview worker (renders project thumbnails in headless Chrome)
+After=network.target bulbus-app.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/bulbus
+EnvironmentFile=/home/ubuntu/bulbus/.env.production
+Environment=PREVIEW_APP_URL=http://localhost:3000 PREVIEW_CHROME=/usr/bin/google-chrome
+ExecStart=/home/ubuntu/.bun/bin/bun scripts/previews.ts
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

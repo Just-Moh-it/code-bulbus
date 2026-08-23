@@ -11,5 +11,5 @@ rsync -az --delete -e "ssh -i $KEY -o StrictHostKeyChecking=accept-new" \
   ./ ubuntu@$HOST:/home/ubuntu/bulbus/
 [ -f .env.production ] && scp -i "$KEY" .env.production ubuntu@$HOST:/home/ubuntu/bulbus/.env.production
 $SSH 'set -e; cd bulbus; export PATH=$HOME/.bun/bin:$PATH; bun install --frozen-lockfile; set -a; . ./.env.production; set +a; bun run build'
-$SSH 'sudo cp bulbus/deploy/Caddyfile /etc/caddy/Caddyfile && sudo cp bulbus/deploy/bulbus-app.service bulbus/deploy/bulbus-agents.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now bulbus-app bulbus-agents && sudo systemctl restart bulbus-app bulbus-agents caddy'
+$SSH 'sudo cp bulbus/deploy/Caddyfile /etc/caddy/Caddyfile && sudo cp bulbus/deploy/bulbus-app.service bulbus/deploy/bulbus-agents.service bulbus/deploy/bulbus-previews.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now bulbus-app bulbus-agents bulbus-previews && sudo systemctl restart bulbus-app bulbus-agents bulbus-previews caddy'
 echo "deployed to https://bulbus.mohitya.dev"

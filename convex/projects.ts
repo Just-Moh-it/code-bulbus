@@ -1,6 +1,7 @@
 import { mutation, query } from './_generated/server'
 import { v } from 'convex/values'
 import { applyOps } from './circuit'
+import type { QueryCtx } from './_generated/server'
 
 const rowToJSON = (r: {
   id: string
@@ -68,7 +69,12 @@ export const list = query({
       rows = await ctx.db.query('projects').order('desc').collect()
     }
     if (limit) rows = rows.slice(0, limit)
-    return rows.map(rowToJSON)
+    return Promise.all(
+      rows.map(async (r) => ({
+        ...rowToJSON(r),
+        previewUrl: r.preview ? await ctx.storage.getUrl(r.preview) : null,
+      })),
+    )
   },
 })
 
@@ -156,21 +162,83 @@ export const remove = mutation({
   },
 })
 
+/**
+ * Order-independent digest of a project's circuit (FNV-1a over each entity's
+ * sorted-key JSON, xor-folded). Two circuits that render the same picture hash
+ * the same, so previews are only re-rendered when the geometry really changed.
+ */
+function hashEntities(rows: { id: string; data: unknown }[]) {
+  let acc = 0
+  for (const row of rows) {
+    let h = 0x811c9dc5
+    const json = JSON.stringify(row.data, (_k, v: unknown) =>
+      v && typeof v === 'object' && !Array.isArray(v)
+        ? Object.fromEntries(
+            Object.keys(v as object)
+              .sort()
+              .map((k) => [k, (v as Record<string, unknown>)[k]]),
+          )
+        : v,
+    )
+    for (let i = 0; i < json.length; i++) {
+      h ^= json.charCodeAt(i)
+      h = Math.imul(h, 0x01000193)
+    }
+    acc = (acc ^ h) >>> 0
+  }
+  return acc.toString(16).padStart(8, '0')
+}
+
+export async function circuitHash(ctx: QueryCtx, projectId: string) {
+  const parts = await ctx.db
+    .query('parts')
+    .withIndex('by_project_id', (q) => q.eq('projectId', projectId))
+    .collect()
+  const wires = await ctx.db
+    .query('wires')
+    .withIndex('by_project_id', (q) => q.eq('projectId', projectId))
+    .collect()
+  return `${hashEntities(parts)}-${hashEntities(wires)}-${parts.length}.${wires.length}`
+}
+
+/** Projects whose stored preview no longer matches their circuit. */
+export const stalePreviews = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit = 20 }) => {
+    const rows = await ctx.db.query('projects').order('desc').collect()
+    const stale = []
+    for (const row of rows) {
+      const hash = await circuitHash(ctx, row.id)
+      // nothing to draw yet: a project with no rows would render an empty frame
+      if (hash.endsWith('0.0')) continue
+      if (row.previewHash !== hash) stale.push({ id: row.id, hash })
+      if (stale.length >= limit) break
+    }
+    return stale
+  },
+})
+
 export const generatePreviewUploadUrl = mutation({
   args: {},
   handler: async (ctx) => ctx.storage.generateUploadUrl(),
 })
 
 export const setPreview = mutation({
-  args: { id: v.string(), storageId: v.id('_storage') },
-  handler: async (ctx, { id, storageId }) => {
+  args: {
+    id: v.string(),
+    storageId: v.id('_storage'),
+    /** The `stalePreviews` hash this image was rendered from. */
+    hash: v.optional(v.string()),
+  },
+  handler: async (ctx, { id, storageId, hash }) => {
     const existing = await ctx.db
       .query('projects')
       .withIndex('by_public_id', (q) => q.eq('id', id))
       .unique()
     if (!existing) return
-    if (existing.preview) await ctx.storage.delete(existing.preview)
-    await ctx.db.patch(existing._id, { preview: storageId })
+    if (existing.preview && existing.preview !== storageId)
+      await ctx.storage.delete(existing.preview)
+    await ctx.db.patch(existing._id, { preview: storageId, previewHash: hash })
   },
 })
 

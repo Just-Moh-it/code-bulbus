@@ -19,7 +19,8 @@
     "agents:runtime": "electric-ax agents start",
     "agents:server": "bun --watch agents/server.ts",
     "agents:stop": "electric-ax agents stop",
-    "proxy": "caddy run --config Caddyfile"
+    "proxy": "caddy run --config Caddyfile",
+    "previews": "bun scripts/previews.ts"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
@@ -88,6 +89,7 @@
     "@types/three": "^0.185.4",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.20.0",
+    "playwright-core": "^1.62.1",
     "prettier": "^3.8.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.0"

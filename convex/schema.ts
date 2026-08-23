@@ -21,6 +21,8 @@ export default defineSchema({
     /** Legacy whole-circuit blob; see module comment. */
     circuit: v.optional(v.any()),
     preview: v.optional(v.id('_storage')),
+    /** Hash of the circuit the stored preview was rendered from. */
+    previewHash: v.optional(v.string()),
     agentVersion: v.optional(v.number()),
     /** Shared run state: the editor starts/stops its simulator from this, and agents can drive it. */
     simulating: v.optional(v.boolean()),
