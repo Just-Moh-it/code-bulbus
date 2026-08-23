@@ -76,6 +76,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@opentelemetry/api": "^1.9.1",
     "@tanstack/devtools-event-client": "latest",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/eslint-config": "latest",

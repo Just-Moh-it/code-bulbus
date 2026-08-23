@@ -1,0 +1,15 @@
+[Unit]
+Description=bulbus web app (TanStack Start / nitro)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/bulbus
+EnvironmentFile=/home/ubuntu/bulbus/.env.production
+Environment=PORT=3000 NODE_ENV=production ARDUINO_CLI=/usr/local/bin/arduino-cli
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

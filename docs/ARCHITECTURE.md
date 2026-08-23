@@ -179,6 +179,30 @@ browser ──observe (read-only)──▶ coordinator :4437 ◀──webhook wa
 - The membership stream's collections are runtime proxies (`toArray`), not
   TanStack `Collection`s — read them directly; `useChat(db)` handles the chat.
 
+## Deployment (one EC2 box)
+
+Everything that needs a real machine — `arduino-cli`, the Electric Agents
+coordinator (docker), the agent server — lives on one Ubuntu box with the
+built app, behind Caddy auto-HTTPS:
+
+```
+bulbus.mohitya.dev (Vercel DNS A → Elastic IP 44.234.232.233, us-west-2)
+  caddy :443 ── /agents/* ─▶ electric coordinator :4437 (docker: postgres+electric+coordinator)
+             └─ /*        ─▶ node .output/server/index.mjs :3000 (TanStack Start; compile route runs arduino-cli)
+  bun agents/server.ts :4440  ◀── webhook wakes from the coordinator
+```
+
+- `deploy/deploy.sh <host>` rsyncs the tree, installs, builds with
+  `.env.production` (gitignored; keys + model config), installs the systemd
+  units (`bulbus-app`, `bulbus-agents`) and the Caddyfile.
+- First boot is scripted in the EC2 user-data (docker, node 22, bun, caddy,
+  arduino-cli + `arduino:avr` + LiquidCrystal libs). Start the coordinator
+  once with `bunx electric-ax agents start` on the box.
+- Off-localhost the browser reaches the coordinator at
+  `${origin}/agents` (`ChatThread.tsx`), so one hostname serves everything.
+- Convex is the shared dev deployment (`VITE_CONVEX_URL`); switch to a prod
+  deployment with `bunx convex deploy` when needed.
+
 ## Known deviations from the reference
 
 - Placement snaps to terminals immediately (`Stamp.tsx`); the reference only

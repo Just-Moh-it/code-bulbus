@@ -1,0 +1,15 @@
+[Unit]
+Description=bulbus agent server (Electric Agents entity type)
+After=network.target docker.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/bulbus
+EnvironmentFile=/home/ubuntu/bulbus/.env.production
+Environment=ARDUINO_CLI=/usr/local/bin/arduino-cli
+ExecStart=/home/ubuntu/.bun/bin/bun agents/server.ts
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

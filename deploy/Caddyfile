@@ -1,0 +1,12 @@
+# Production front on the EC2 box: auto-HTTPS for bulbus.mohitya.dev.
+#   /agents/*  -> electric coordinator (docker, :4437)
+#   /*         -> the built TanStack Start app (node, :3000)
+bulbus.mohitya.dev {
+	encode zstd gzip
+	handle_path /agents/* {
+		reverse_proxy localhost:4437
+	}
+	handle {
+		reverse_proxy localhost:3000
+	}
+}
