@@ -1,26 +1,36 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
-import { Plus } from 'lucide-react'
+import { ArrowRight, Plus, Thermometer } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import { Logo } from '#/components/editor/Navbar'
+import { Button } from '#/components/ui/button'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 export function SiteHeader() {
   return (
-    <nav className="flex h-16 w-full shrink-0 items-center border-b border-border bg-white/70 px-3 backdrop-blur-md md:px-6">
-      <div className="contents">
-        <Link to="/" className="flex items-center gap-3">
-          <Logo />
-          <span className="font-mono text-lg font-bold">bulbus</span>
+    <nav className="sticky top-0 z-10 flex h-11 w-full shrink-0 items-center border-b border-border bg-card/90 px-3 backdrop-blur md:px-6">
+      <Link to="/" className="flex items-center gap-2">
+        <Logo />
+        <span className="text-sm font-semibold tracking-tight">bulbus</span>
+      </Link>
+      <div className="flex px-6">
+        <Link
+          to="/explore"
+          className="text-[13px] font-medium text-muted-foreground hover:text-foreground"
+        >
+          Explore
         </Link>
-        <div className="mt-[2.5px] flex px-8">
-          <Link to="/explore" className="text-base font-bold hover:underline">
-            Explore
-          </Link>
-        </div>
       </div>
     </nav>
+  )
+}
+
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+      {children}
+    </h2>
   )
 }
 
@@ -34,13 +44,20 @@ export function ProjectCard({
   preview?: string | null
 }) {
   return (
-    <Link to="/projects/$id" params={{ id }} className="flex flex-col gap-2">
-      <div className="aspect-[16/12] overflow-hidden rounded-xl border border-border bg-white">
+    <Link
+      to="/projects/$id"
+      params={{ id }}
+      className="group flex flex-col overflow-hidden rounded-sm border border-border bg-card transition-colors hover:border-primary/60"
+    >
+      <div className="aspect-[16/10] overflow-hidden border-b border-border bg-muted">
         {preview && (
           <img src={preview} alt={name} className="size-full object-cover" />
         )}
       </div>
-      <span>{name}</span>
+      <div className="flex items-center justify-between px-3 py-2">
+        <span className="truncate text-[13px] font-medium">{name}</span>
+        <ArrowRight className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
     </Link>
   )
 }
@@ -52,12 +69,16 @@ export function ProjectGrid({
 }) {
   if (!projects)
     return (
-      <div className="min-h-40 text-sm text-muted-foreground">Loading…</div>
+      <div className="min-h-40 text-[13px] text-muted-foreground">Loading…</div>
     )
   if (projects.length === 0)
-    return <p className="text-sm">No projects to show.</p>
+    return (
+      <p className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-[13px] text-muted-foreground">
+        No projects yet.
+      </p>
+    )
   return (
-    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {projects.map((p) => (
         <ProjectCard key={p.id} id={p.id} name={p.name} />
       ))}
@@ -68,61 +89,53 @@ export function ProjectGrid({
 function Home() {
   const projects = useQuery(api.projects.list, {})
   const navigate = useNavigate()
+  const open = (template: 'blank' | 'thermostat') =>
+    void navigate({
+      to: '/projects/$id',
+      params: { id: crypto.randomUUID() },
+      search: { template },
+    })
   return (
     <>
       <SiteHeader />
-      <main className="min-h-[calc(100vh-4rem)]">
-        <div className="mx-auto max-w-7xl p-8 md:p-12 lg:p-24">
-          <div className="flex flex-col gap-12">
-            <section className="hidden flex-col gap-6 md:flex">
-              <h2 className="text-lg font-semibold">Create a Project</h2>
-              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                <button
-                  type="button"
-                  className="aspect-[16/12] text-left"
-                  onClick={() =>
-                    void navigate({
-                      to: '/projects/$id',
-                      params: { id: crypto.randomUUID() },
-                      search: { template: 'blank' },
-                    })
-                  }
-                >
-                  <div className="flex size-full items-center justify-center rounded-xl border border-border bg-white">
-                    <div className="flex flex-col items-center gap-2">
-                      <span>New Project</span>
-                      <Plus className="size-4" />
-                    </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className="aspect-[16/12] text-left"
-                  onClick={() =>
-                    void navigate({
-                      to: '/projects/$id',
-                      params: { id: crypto.randomUUID() },
-                      search: { template: 'thermostat' },
-                    })
-                  }
-                >
-                  <div className="flex size-full items-center justify-center rounded-xl border border-border bg-white">
-                    <div className="flex flex-col items-center gap-2">
-                      <span>Thermostat demo</span>
-                      <span className="text-xs text-muted-foreground">
-                        TMP36 · pot · 16x2 LCD
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </section>
-            <section className="flex flex-col gap-6">
-              <h2 className="text-lg font-semibold">My Projects</h2>
-              <ProjectGrid projects={projects} />
-            </section>
+      <main className="min-h-[calc(100vh-2.75rem)]">
+        <section className="border-b border-border bg-card">
+          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-16 md:py-24">
+            <p className="text-[11px] font-semibold tracking-[0.2em] text-primary uppercase">
+              Breadboard · Arduino · SPICE
+            </p>
+            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance md:text-5xl">
+              Build and simulate real circuits in the browser.
+            </h1>
+            <p className="max-w-xl text-base text-muted-foreground">
+              Drop parts on a 3D breadboard, wire them up, write the sketch and
+              run it — ngspice and an AVR emulator, live. Or just ask the agent
+              to build it for you.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => open('blank')}>
+                <Plus className="size-4" />
+                New project
+              </Button>
+              <Button variant="outline" onClick={() => open('thermostat')}>
+                <Thermometer className="size-4" />
+                Thermostat demo
+              </Button>
+            </div>
           </div>
-        </div>
+        </section>
+        <section className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10">
+          <div className="flex items-baseline justify-between">
+            <SectionLabel>My projects</SectionLabel>
+            <Link
+              to="/explore"
+              className="text-[13px] font-medium text-primary hover:underline"
+            >
+              Explore all
+            </Link>
+          </div>
+          <ProjectGrid projects={projects} />
+        </section>
       </main>
     </>
   )

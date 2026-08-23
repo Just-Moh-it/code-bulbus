@@ -4,7 +4,7 @@ import { Line } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { localBox } from './fit'
 
-export const OUTLINE_COLOR = '#3b82f6' // deviation from the reference (red BoxHelper): blue, thinner
+export const OUTLINE_COLOR = '#2563eb' // deviation from the reference (red BoxHelper): blue, thinner
 export const OUTLINE_WIDTH = 1 // px; selected = 1.5× this
 
 /** The 12 edges of a box as line segments (pairs of points). */

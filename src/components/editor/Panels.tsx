@@ -14,7 +14,7 @@ import type { EditorPart, EditorProject, StampType } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 import { ArduinoUno, Potentiometer, Tmp36 } from '#/sim'
 
-const PANEL = 'hidden h-full min-h-0 w-64 shrink-0 flex-col bg-white md:flex'
+const PANEL = 'hidden h-full min-h-0 w-64 shrink-0 flex-col bg-card md:flex'
 
 // ------------------------------------------------------------ icon buttons
 const IconBtn = ({
@@ -29,11 +29,11 @@ const IconBtn = ({
   <Tooltip>
     <TooltipTrigger asChild>
       <Button
-        size="sm"
-        variant="secondary"
+        size="icon-sm"
+        variant="outline"
         aria-label={label}
         onClick={onClick}
-        className="h-8 w-8 p-0"
+        className="text-muted-foreground hover:text-foreground"
       >
         {children}
       </Button>
@@ -185,7 +185,7 @@ function BackHeader({ label, onBack }: { label: string; onBack: () => void }) {
     <button
       type="button"
       onClick={onBack}
-      className="flex items-center gap-1 border-b border-border/60 px-4 py-3 text-left text-sm font-semibold hover:bg-gray-50"
+      className="flex h-10 items-center gap-1 border-b border-border px-3 text-left text-[13px] font-semibold hover:bg-muted"
     >
       <ChevronLeft className="size-4" />
       {label}
@@ -199,17 +199,22 @@ const Palette = observer(function Palette({
   project: EditorProject
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-5">
-      <h3 className="ml-2 text-sm font-bold">Insert Part</h3>
-      <ul className="flex select-none flex-col gap-1">
-        {PALETTE.map((p) => (
-          <li
-            key={p.stampType}
-            className={`cursor-pointer rounded-lg p-2 hover:bg-gray-100 ${project.stampType === p.stampType ? 'bg-gray-100' : ''}`}
-            onPointerDown={() => project.setStampType(p.stampType as StampType)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-md bg-gray-200 p-1.5">
+    <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-3">
+      <h3 className="px-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        Parts
+      </h3>
+      <ul className="flex select-none flex-col gap-px">
+        {PALETTE.map((p) => {
+          const active = project.stampType === p.stampType
+          return (
+            <li
+              key={p.stampType}
+              className={`flex h-9 cursor-pointer items-center gap-2.5 rounded-sm px-2 text-[13px] ${active ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted'}`}
+              onPointerDown={() =>
+                project.setStampType(p.stampType as StampType)
+              }
+            >
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-muted p-1">
                 <img
                   src={p.img}
                   alt={p.label}
@@ -218,10 +223,10 @@ const Palette = observer(function Palette({
                   style={{ mixBlendMode: 'darken' }}
                 />
               </div>
-              <span>{p.label}</span>
-            </div>
-          </li>
-        ))}
+              <span className="truncate">{p.label}</span>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
@@ -323,9 +328,9 @@ const ArduinoLogs = observer(function ArduinoLogs({
 }) {
   return (
     <Section title="Arduino Logs">
-      <pre className="h-28 w-full overflow-auto rounded-md bg-muted p-2 font-mono text-sm leading-[0.8rem]">
+      <pre className="h-28 w-full overflow-auto rounded-sm border border-border bg-muted p-2 font-mono text-xs leading-4">
         {part.logs.length === 0 ? (
-          <span className="text-gray-400">No Logs.</span>
+          <span className="text-muted-foreground">No logs.</span>
         ) : (
           part.logs
         )}

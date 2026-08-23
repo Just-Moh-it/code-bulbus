@@ -12,7 +12,7 @@ import { Stamp } from './Stamp'
 import { Hotkeys } from './Hotkeys'
 import { preloadModels } from './models'
 
-export const CANVAS_BG = '#F9FAFC'
+export const CANVAS_BG = '#F3F5F9'
 
 /** Copies persisted camera into OrbitControls and records it back on every orbit end. */
 const CameraSync = observer(function CameraSync() {

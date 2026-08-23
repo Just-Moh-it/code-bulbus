@@ -16,7 +16,7 @@ import {
 } from '#/lib/compile-client'
 import type { ArduinoUnoPart, SketchFiles } from '#/editor/models'
 
-const DRAWER_BG = '#292C34'
+const DRAWER_BG = '#161B26'
 const shellLang = StreamLanguage.define(shell)
 const clone = (f: SketchFiles) => JSON.parse(JSON.stringify(f)) as SketchFiles
 
@@ -99,7 +99,7 @@ const CodeEditor = observer(function CodeEditor({
             return (
               <div
                 key={name}
-                className={`flex items-center rounded-t-lg px-2 py-1.5 text-sm ${isActive ? 'text-teal-300' : 'text-gray-500'} hover:text-teal-200`}
+                className={`flex items-center rounded-t-sm px-2 py-1.5 text-sm ${isActive ? 'text-blue-300' : 'text-gray-500'} hover:text-blue-200`}
                 style={{ background: DRAWER_BG }}
                 onClick={() => setTabIndex(idx)}
               >
@@ -141,7 +141,7 @@ const CodeEditor = observer(function CodeEditor({
           <Button
             size="sm"
             variant="ghost"
-            className="text-gray-300 hover:bg-[#2C313D] hover:text-teal-200"
+            className="text-gray-300 hover:bg-[#1F2533] hover:text-blue-200"
             onClick={addFile}
             aria-label="Add file"
           >
@@ -150,7 +150,7 @@ const CodeEditor = observer(function CodeEditor({
           <Button
             size="sm"
             variant="ghost"
-            className="text-gray-300 hover:bg-[#2C313D] hover:text-teal-200"
+            className="text-gray-300 hover:bg-[#1F2533] hover:text-blue-200"
             disabled={part.compilationStatus === 'compiling'}
             onClick={() => void compileArduino(part)}
           >
@@ -165,7 +165,7 @@ const CodeEditor = observer(function CodeEditor({
           <Button
             size="sm"
             variant="ghost"
-            className="mr-2 px-2 text-gray-300 hover:bg-[#2C313D] hover:text-teal-200"
+            className="mr-2 px-2 text-gray-300 hover:bg-[#1F2533] hover:text-blue-200"
             onClick={() => void compileArduino(part).then(onClose)}
             aria-label="Close"
           >

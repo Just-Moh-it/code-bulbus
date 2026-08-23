@@ -53,8 +53,10 @@ export function Section({
   children: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border/60 px-6 py-5">
-      <h3 className="text-sm font-bold">{title}</h3>
+    <div className="flex flex-col gap-2.5 border-b border-border px-4 py-3.5">
+      <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {title}
+      </h3>
       {children}
     </div>
   )
@@ -68,8 +70,8 @@ export function Row({
   children: ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm">{label}</span>
+    <div className="flex min-h-7 items-center justify-between gap-3">
+      <span className="text-[13px]">{label}</span>
       {children}
     </div>
   )
@@ -86,7 +88,7 @@ function SmallSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger size="sm" className="max-w-[50%] rounded-md text-sm">
+      <SelectTrigger size="sm" className="max-w-[55%] text-[13px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -297,7 +299,7 @@ export const CompileStatusIcon = observer(
     if (s === 'compiling') return null
     const icon =
       s === 'success' ? (
-        <CheckCircle2 className="size-4 text-green-400" />
+        <CheckCircle2 className="size-4 text-primary" />
       ) : s === 'error' ? (
         <XCircle className="size-4 text-red-400" />
       ) : (
@@ -411,7 +413,7 @@ export function RangeRow({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-[13px]">
         <span>{label}</span>
         <span className="tabular-nums text-muted-foreground">
           {format(value)}
@@ -419,7 +421,7 @@ export function RangeRow({
       </div>
       <input
         type="range"
-        className="w-full accent-teal-500"
+        className="w-full accent-primary"
         min={min}
         max={max}
         step={step}

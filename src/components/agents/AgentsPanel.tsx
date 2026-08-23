@@ -103,8 +103,8 @@ export function AgentsPanel({ projectId }: { projectId: string }) {
   }
 
   return (
-    <aside className="hidden h-full min-h-0 w-96 shrink-0 flex-col border-l border-border bg-white md:flex">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border/60 pr-2 pl-4">
+    <aside className="hidden h-full min-h-0 w-96 shrink-0 flex-col border-l border-border bg-card md:flex">
+      <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border pr-1.5 pl-3">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {title}
         </span>
@@ -141,7 +141,7 @@ export function AgentsPanel({ projectId }: { projectId: string }) {
                   onSelect={() => setSelected(c.url)}
                 >
                   <span
-                    className={`size-2 shrink-0 rounded-full ${c.status === 'running' ? 'bg-teal-400' : 'bg-gray-300'}`}
+                    className={`size-2 shrink-0 rounded-full ${c.status === 'running' ? 'bg-primary' : 'bg-gray-300'}`}
                   />
                   <span className="min-w-0 flex-1 truncate">
                     {c.tags.name ?? c.url}

@@ -316,7 +316,7 @@ export function ChatThread({
                   type="button"
                   disabled={isBusy}
                   onClick={() => void send({ text: prompt, attachments: [] })}
-                  className="block w-full border-b px-1 py-3.5 text-left text-sm text-muted-foreground transition-colors last:border-b-0 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                  className="block w-full border-b px-1 py-3 text-left text-[13px] text-muted-foreground transition-colors last:border-b-0 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                 >
                   {prompt}
                 </button>

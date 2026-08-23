@@ -28,7 +28,7 @@ export const Route = createFileRoute('/projects/$id')({
   head: () => ({ meta: [{ title: 'bulbus' }] }),
 })
 
-const CANVAS_BG = '#F9FAFC'
+const CANVAS_BG = '#F3F5F9'
 
 function ProjectPage() {
   const { id } = Route.useParams()

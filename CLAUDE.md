@@ -21,3 +21,8 @@ Conventions:
 - Scene refs that write to models are `useCallback`-stable; setters no-op on same value.
 - Numbers that come from the reference are named constants or cite the reference in a comment.
 - No `as unknown as` casts without a comment explaining why the type is wrong.
+
+Design language (2026-08-22): dense engineering-tool look — Inter, 4px radii,
+cool-slate neutrals, blue primary (`--primary`), uppercase 11px section labels,
+1px borders, no drop shadows. Use theme tokens (`bg-card`, `text-muted-foreground`,
+`bg-accent`…) — never `gray-*`/`teal-*` utility colors.

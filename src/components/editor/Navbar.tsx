@@ -42,10 +42,14 @@ import { allArduinosCompiled, embedCode, embedUrl } from '#/lib/projects'
 import type { EditorProject } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 
-export const NAVBAR_H = 'h-16'
+export const NAVBAR_H = 'h-11'
 
 /** Logo mark (the reference's `DiodeLogo` is a custom glyph; we use a simple diode symbol). */
-export function Logo({ className = 'size-9' }: { className?: string }) {
+export function Logo({
+  className = 'size-6 text-primary',
+}: {
+  className?: string
+}) {
   return (
     <svg viewBox="0 0 61 61" className={className} aria-hidden>
       <circle
@@ -85,7 +89,7 @@ export const EditableName = observer(function EditableName({
   if (!editing) {
     return (
       <button
-        className="inline-block max-w-[28ch] cursor-text break-words whitespace-pre-wrap rounded px-2 -ml-2 text-left hover:bg-gray-100"
+        className="inline-block max-w-[28ch] cursor-text truncate rounded-sm px-2 -ml-2 text-left text-sm font-medium hover:bg-muted"
         onClick={() => {
           setValue(project.name)
           setEditing(true)
@@ -98,7 +102,7 @@ export const EditableName = observer(function EditableName({
   return (
     <textarea
       autoFocus
-      className="-ml-2 w-[calc(100%+1rem)] resize-none rounded border px-2 text-inherit outline-none"
+      className="-ml-2 w-[calc(100%+1rem)] resize-none rounded-sm border border-ring px-2 text-sm font-medium outline-none"
       rows={1}
       maxLength={40}
       placeholder="Untitled"
@@ -154,11 +158,12 @@ const EmbedPopover = observer(function EmbedPopover({
     <Popover>
       <PopoverTrigger asChild>
         <Button
-          variant="secondary"
+          size="sm"
+          variant="outline"
           disabled={!project}
           className="hidden md:inline-flex"
         >
-          <Code2 className="-ml-1 mr-1 size-4" />
+          <Code2 className="size-3.5" />
           Embed
         </Button>
       </PopoverTrigger>
@@ -200,7 +205,7 @@ const ProjectMenu = observer(function ProjectMenu({
           <Button
             size="icon"
             variant="ghost"
-            className="-mr-1 size-6"
+            className="-mr-1 size-6 text-muted-foreground"
             aria-label="Project menu"
           >
             <MoreHorizontal className="size-4" />
@@ -296,53 +301,52 @@ export const EditorNavbar = observer(function EditorNavbar({
   }
   return (
     <nav
-      className={`relative flex ${NAVBAR_H} w-full shrink-0 items-center border-b border-border bg-white px-3 md:px-6`}
+      className={`relative flex ${NAVBAR_H} w-full shrink-0 items-center border-b border-border bg-card px-3`}
     >
       <div className="contents">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-2">
           <Logo />
-          <span className="font-mono text-lg font-bold">bulbus</span>
+          <span className="text-sm font-semibold tracking-tight">bulbus</span>
         </Link>
-        <div className="mt-[2.5px] hidden gap-6 px-8 md:flex">
-          <Link to="/explore" className="text-base font-bold hover:underline">
+        <div className="hidden gap-4 px-6 md:flex">
+          <Link
+            to="/explore"
+            className="text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          >
             Explore
           </Link>
         </div>
         <div className="flex-1" />
-        <div className="flex gap-3 md:gap-6">
-          <div className="flex gap-3">
-            <EmbedPopover project={project} />
+        <div className="flex gap-1.5">
+          <EmbedPopover project={project} />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!project}
+            className="hidden md:inline-flex"
+            onClick={() => void onFork()}
+          >
+            <GitFork className="size-3.5" />
+            Fork
+          </Button>
+          {simulator ? (
             <Button
-              variant="secondary"
+              size="sm"
+              variant="destructive"
+              onClick={onStopSimulation}
               disabled={!project}
-              className="hidden md:inline-flex"
-              onClick={() => void onFork()}
             >
-              <GitFork className="-ml-1 mr-1 size-4" />
-              Fork
+              <Square className="size-3.5" />
+              Stop
             </Button>
-            {simulator ? (
-              <Button
-                variant="destructive"
-                onClick={onStopSimulation}
-                disabled={!project}
-              >
-                <Square className="-ml-1 mr-1 size-4" />
-                Stop
-              </Button>
-            ) : (
-              <Button
-                className="bg-teal-200 text-teal-900 hover:bg-teal-300 active:bg-teal-400"
-                disabled={!project}
-                onClick={simulate}
-              >
-                <Play className="-ml-1 mr-1 size-4" />
-                Simulate
-              </Button>
-            )}
-          </div>
+          ) : (
+            <Button size="sm" disabled={!project} onClick={simulate}>
+              <Play className="size-3.5" />
+              Simulate
+            </Button>
+          )}
         </div>
-        <div className="absolute left-1/2 h-8 -translate-x-1/2">
+        <div className="absolute left-1/2 -translate-x-1/2">
           {project && (
             <div className="flex items-center gap-1">
               <EditableName project={project} />

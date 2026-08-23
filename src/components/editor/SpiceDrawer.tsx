@@ -3,7 +3,7 @@ import CodeMirror from '@uiw/react-codemirror'
 import { Sheet, SheetContent, SheetTitle } from '#/components/ui/sheet'
 import type { EightPinChipPart } from '#/editor/models'
 
-const DRAWER_BG = '#292C34'
+const DRAWER_BG = '#161B26'
 
 /** Drawer for the custom chip's `.subckt` body. */
 export const SpiceDrawer = observer(function SpiceDrawer({
@@ -28,8 +28,8 @@ export const SpiceDrawer = observer(function SpiceDrawer({
           className="flex h-full flex-col text-base"
           style={{ background: DRAWER_BG }}
         >
-          <div className="flex border-b-2 border-purple-500">
-            <span className="rounded-t-lg px-2 py-1 text-sm text-teal-300">
+          <div className="flex border-b-2 border-primary">
+            <span className="rounded-t-sm px-2 py-1 text-sm text-blue-300">
               subckt.lib
             </span>
           </div>
