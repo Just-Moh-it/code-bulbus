@@ -52,17 +52,20 @@ void loop() {
 }
 `
 
-const BB_ID = 'bb-thermostat'
-const UNO_ID = 'uno-thermostat'
+export const BB_ID = 'bb-thermostat'
+export const UNO_ID = 'uno-thermostat'
 const bbTerms = Object.fromEntries(
   defs.breadboardTerminals.map((t) => [t.name, t]),
 )
 const unoTerms = Object.fromEntries(
   defs.arduinoUnoTerminals.map((t) => [t.name, t]),
 )
-const UNO_SURFACE_Y = 0.71 * defs.arduinoUnoDimensions.height // ArduinoUnoPart.dragSurfaceHeight
+export const UNO_SURFACE_Y = 0.71 * defs.arduinoUnoDimensions.height // ArduinoUnoPart.dragSurfaceHeight
 
 let seq = 0
+export const resetIds = () => {
+  seq = 0
+}
 const id = (p: string) => `${p}-${++seq}`
 
 const TERMINAL_DEFS: Partial<Record<PartType, TerminalDefinition[]>> = {
@@ -77,7 +80,7 @@ const TERMINAL_DEFS: Partial<Record<PartType, TerminalDefinition[]>> = {
  * Place a breadboard child so that its named pin sits in a hole: position =
  * hole − R(rotation)·pinLocal (XZ), y = the breadboard's drag surface.
  */
-function onBreadboard(
+export function onBreadboard(
   type: PartType,
   rotation: number,
   conns: Record<string, string>,
@@ -110,7 +113,7 @@ function onBreadboard(
   }
 }
 
-function bbEnd(hole: string): PartJSON {
+export function bbEnd(hole: string): PartJSON {
   const h = bbTerms[hole]
   return {
     id: id('we'),
@@ -126,7 +129,7 @@ function bbEnd(hole: string): PartJSON {
   }
 }
 
-function unoEnd(pin: string): PartJSON {
+export function unoEnd(pin: string): PartJSON {
   const t = unoTerms[pin]
   return {
     id: id('we'),
