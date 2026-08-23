@@ -100,9 +100,11 @@ export const EditableName = observer(function EditableName({
 const ProjectMenu = observer(function ProjectMenu({
   project,
   onDelete,
+  onDuplicate,
 }: {
   project: EditorProject
   onDelete: () => Promise<void>
+  onDuplicate: () => Promise<void>
 }) {
   const [confirm, setConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -142,6 +144,9 @@ const ProjectMenu = observer(function ProjectMenu({
             </span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => void onDuplicate()}>
+            Duplicate Project
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setConfirm(true)}>
             Delete Project
           </DropdownMenuItem>
@@ -183,9 +188,11 @@ const ProjectMenu = observer(function ProjectMenu({
 export const EditorTopBar = observer(function EditorTopBar({
   project,
   onDelete,
+  onDuplicate,
 }: {
   project: EditorProject | null
   onDelete: () => Promise<void>
+  onDuplicate: () => Promise<void>
 }) {
   return (
     <div className="pointer-events-auto flex h-10 items-center gap-2 rounded-md border border-border bg-card px-2 shadow-sm">
@@ -197,7 +204,11 @@ export const EditorTopBar = observer(function EditorTopBar({
           <span className="h-5 w-px bg-border" />
           <div className="flex items-center gap-1 pl-1">
             <EditableName project={project} />
-            <ProjectMenu project={project} onDelete={onDelete} />
+            <ProjectMenu
+              project={project}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+            />
           </div>
         </>
       )}

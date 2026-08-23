@@ -36,6 +36,7 @@ function ProjectPage() {
   const server = useQuery(api.circuit.get, { projectId: id })
   const create = useMutation(api.projects.create)
   const remove = useMutation(api.projects.remove)
+  const duplicate = useMutation(api.projects.duplicate)
   const navigate = useNavigate()
   const [simulator, setSimulator] = useState<Simulator | null>(null)
 
@@ -150,7 +151,15 @@ function ProjectPage() {
       <div className="pointer-events-none absolute inset-0 hidden p-3 md:block">
         <div className="flex h-full gap-3">
           <div className="flex shrink-0 flex-col gap-3">
-            <EditorTopBar project={project} onDelete={del} />
+            <EditorTopBar
+              project={project}
+              onDelete={del}
+              onDuplicate={async () => {
+                const newId = crypto.randomUUID()
+                await duplicate({ id, newId })
+                await navigate({ to: '/projects/$id', params: { id: newId } })
+              }}
+            />
             <div className="min-h-0 flex-1">
               {simulator ? (
                 <SimLeftPanel simulator={simulator} />

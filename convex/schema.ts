@@ -14,6 +14,8 @@ export default defineSchema({
     user_id: v.optional(v.union(v.string(), v.null())),
     parent_id: v.optional(v.union(v.string(), v.null())),
     featured: v.optional(v.boolean()),
+    /** Shown on /explore. */
+    isPublic: v.optional(v.boolean()),
     created_at: v.string(),
     camera: v.optional(v.any()),
     /** Legacy whole-circuit blob; see module comment. */
@@ -25,7 +27,8 @@ export default defineSchema({
   })
     .index('by_public_id', ['id'])
     .index('by_user', ['user_id'])
-    .index('by_featured', ['featured']),
+    .index('by_featured', ['featured'])
+    .index('by_is_public', ['isPublic']),
   parts: defineTable({
     projectId: v.string(),
     id: v.string(),

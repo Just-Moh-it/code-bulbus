@@ -142,6 +142,8 @@ function unoEnd(pin: string): PartJSON {
 export function thermostatProject(
   projectId: string,
   userId?: string | null,
+  sketch: string = THERMOSTAT_SKETCH,
+  name = 'Thermostat',
 ): ProjectJSON {
   seq = 0
   const parts: PartJSON[] = []
@@ -168,7 +170,7 @@ export function thermostatProject(
     terminals: [],
     files: {
       'main.ino': {
-        content: THERMOSTAT_SKETCH,
+        content: sketch,
         fileExtension: '.ino',
         order: 0,
       },
@@ -285,7 +287,7 @@ export function thermostatProject(
   return {
     id: projectId,
     user_id: userId ?? null,
-    name: 'Thermostat',
+    name,
     featured: false,
     camera: {
       position: { x: -18, y: 14, z: 16 },

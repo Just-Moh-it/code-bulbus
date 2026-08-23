@@ -8,6 +8,7 @@ const rowToJSON = (r: {
   user_id?: string | null
   parent_id?: string | null
   featured?: boolean
+  isPublic?: boolean
   created_at: string
   camera?: unknown
   circuit?: unknown
@@ -18,6 +19,7 @@ const rowToJSON = (r: {
   user_id: r.user_id ?? null,
   parent_id: r.parent_id ?? null,
   featured: r.featured ?? false,
+  isPublic: r.isPublic ?? false,
   created_at: r.created_at,
   camera: r.camera,
   circuit: r.circuit,
@@ -39,11 +41,18 @@ export const list = query({
   args: {
     userId: v.optional(v.string()),
     featured: v.optional(v.boolean()),
+    isPublic: v.optional(v.boolean()),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { userId, featured, limit }) => {
+  handler: async (ctx, { userId, featured, isPublic, limit }) => {
     let rows
-    if (userId !== undefined) {
+    if (isPublic !== undefined) {
+      rows = await ctx.db
+        .query('projects')
+        .withIndex('by_is_public', (q) => q.eq('isPublic', isPublic))
+        .order('desc')
+        .collect()
+    } else if (userId !== undefined) {
       rows = await ctx.db
         .query('projects')
         .withIndex('by_user', (q) => q.eq('user_id', userId))
@@ -173,5 +182,48 @@ export const previewUrl = query({
       .withIndex('by_public_id', (q) => q.eq('id', id))
       .unique()
     return existing?.preview ? await ctx.storage.getUrl(existing.preview) : null
+  },
+})
+
+/** Copy a project (metadata + every part/wire row) under a new id. */
+export const duplicate = mutation({
+  args: { id: v.string(), newId: v.string(), name: v.optional(v.string()) },
+  handler: async (ctx, { id, newId, name }) => {
+    const src = await ctx.db
+      .query('projects')
+      .withIndex('by_public_id', (q) => q.eq('id', id))
+      .unique()
+    if (!src) throw new Error('project not found')
+    await ctx.db.insert('projects', {
+      id: newId,
+      name: name ?? `${src.name} (copy)`,
+      user_id: src.user_id ?? null,
+      parent_id: id,
+      featured: false,
+      isPublic: false,
+      created_at: new Date().toISOString(),
+      camera: src.camera,
+      circuit: src.circuit,
+    })
+    for (const table of ['parts', 'wires'] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex('by_project_id', (q) => q.eq('projectId', id))
+        .collect()
+      for (const r of rows)
+        await ctx.db.insert(table, { projectId: newId, id: r.id, data: r.data })
+    }
+    return newId
+  },
+})
+
+export const setPublic = mutation({
+  args: { id: v.string(), isPublic: v.boolean() },
+  handler: async (ctx, { id, isPublic }) => {
+    const row = await ctx.db
+      .query('projects')
+      .withIndex('by_public_id', (q) => q.eq('id', id))
+      .unique()
+    if (row) await ctx.db.patch(row._id, { isPublic })
   },
 })

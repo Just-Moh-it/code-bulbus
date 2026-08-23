@@ -6,7 +6,7 @@ import { ProjectGrid, SectionLabel, SiteHeader } from './index'
 export const Route = createFileRoute('/explore')({ component: Explore })
 
 function Explore() {
-  const projects = useQuery(api.projects.list, {})
+  const projects = useQuery(api.projects.list, { isPublic: true })
   return (
     <>
       <SiteHeader />
