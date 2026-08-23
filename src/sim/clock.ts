@@ -84,6 +84,13 @@ export class Clock {
     }
   }
 
+  /** Jump playback to `t` (ms of simulated time) without firing a tick storm. */
+  seek(t: number) {
+    this.internalTime = t
+    this.setTick(Math.floor(t / this.tickLength))
+    this.setTime(t)
+  }
+
   setTime(t: number) {
     if (t === this.time) return
     this.time = t

@@ -102,6 +102,7 @@ export class Circuit {
   totalSimTime = 0
   /** Wall-clock cost of the last window, for the perf readout. */
   stats = { spice: 0, mcu: 0, window: 0 }
+  private recentWindowMs: number | null = null
   events: CircuitEvents
 
   constructor(json: CircuitJSON, events: CircuitEvents = {}) {
@@ -161,10 +162,14 @@ export class Circuit {
     })
   }
 
+  /**
+   * Wall-clock cost of a window, smoothed over the last few windows only.
+   * A cumulative average (the reference's approach) let one stall — the
+   * ngspice warm-up on window 0, a hidden tab, a GC pause — drag playback
+   * speed down for minutes; an EMA forgets it within ~5 windows.
+   */
   get averageSimTime() {
-    return this.simCount === 0
-      ? this.simDuration
-      : this.totalSimTime / this.simCount
+    return this.recentWindowMs ?? this.simDuration
   }
 
   get idealClockRate() {
@@ -212,7 +217,13 @@ export class Circuit {
     for (const p of this.parts) await p.afterSimulate?.()
   }
 
-  /** Simulate one window. Pacing matches playback: never faster than real time. */
+  /**
+   * Simulate one window. The MCU runs while the pacing timer is still
+   * pending, so a window costs max(pace, spice + mcu) rather than their sum;
+   * playback is never faster than real time and, if production outruns
+   * playback, the clock jumps forward so it only ever reads samples the
+   * DataBus still holds.
+   */
   async simulate() {
     this.beforeSimulate()
     const pace = sleep(fastMachine() ? this.simDuration : 2 * this.simDuration)
@@ -224,16 +235,27 @@ export class Circuit {
       const ts = performance.now()
       const result = await runNetlist(netlist)
       this.stats.spice = performance.now() - ts
+      if (!this.running) return
+      this.data.append(result)
+      const ta = performance.now()
+      await this.afterSimulate()
+      this.stats.mcu = performance.now() - ta
       await pace
       if (this.running) {
-        this.data.append(result)
-        this.totalSimTime += performance.now() - t0
+        const wall = performance.now() - t0
+        this.stats.window = wall
+        this.totalSimTime += wall
         this.simCount += 1
-        this.clock.setRate(this.idealClockRate)
-        const ta = performance.now()
-        await this.afterSimulate()
-        this.stats.mcu = performance.now() - ta
-        this.stats.window = performance.now() - t0
+        // a hidden tab throttles timers to ≥1 s; don't let that poison the rate
+        if (!globalThis.document?.hidden)
+          this.recentWindowMs =
+            this.recentWindowMs === null
+              ? wall
+              : 0.7 * this.recentWindowMs + 0.3 * wall
+        this.clock.setRate(Math.min(1, this.idealClockRate))
+        const lag = this.data.latestTime - this.clock.time
+        if (lag > 2 * this.simDuration)
+          this.clock.seek(this.data.latestTime - this.simDuration)
         this.events.onWindow?.(this)
       }
     } catch (e) {
