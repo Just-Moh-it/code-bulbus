@@ -8,17 +8,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '#/components/ui/tooltip'
+import { Island, IslandTitle } from '#/components/ui/island'
 import { PartProperties, RangeRow, Row, Section } from './Properties'
 import { PALETTE, PART_LABELS } from '#/lib/projects'
 import type { EditorPart, EditorProject, StampType } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 import { ArduinoUno, Potentiometer, Tmp36 } from '#/sim'
-
-const PANEL_BASE =
-  'pointer-events-auto flex min-h-0 w-64 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm'
-const PANEL = `${PANEL_BASE} h-full`
-/** The simulator panel only shows what is relevant, so it hugs its content. */
-const SIM_PANEL = `${PANEL_BASE} h-auto max-h-full`
 
 // ------------------------------------------------------------ icon buttons
 const IconBtn = ({
@@ -183,16 +178,16 @@ export function CameraSection({
 }
 
 // ------------------------------------------------------------ left panel
-/** "< Back" header used when the panel shows a selection; clicking also deselects. */
-function BackHeader({ label, onBack }: { label: string; onBack: () => void }) {
+/** Island title for a selection: clicking it deselects and returns to the palette. */
+function BackTitle({ label, onBack }: { label: string; onBack: () => void }) {
   return (
     <button
       type="button"
       onClick={onBack}
-      className="flex h-10 items-center gap-1 border-b border-border px-3 text-left text-[13px] font-semibold hover:bg-muted"
+      className="-ml-1 flex min-w-0 flex-1 items-center gap-1 rounded-sm px-1 py-1 text-left text-[13px] font-semibold hover:bg-muted"
     >
-      <ChevronLeft className="size-4" />
-      {label}
+      <ChevronLeft className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="truncate">{label}</span>
     </button>
   )
 }
@@ -236,7 +231,7 @@ const Palette = observer(function Palette({
   )
 })
 
-const SelectionPanel = observer(function SelectionPanel({
+const SelectionBody = observer(function SelectionBody({
   project,
   part,
 }: {
@@ -246,10 +241,6 @@ const SelectionPanel = observer(function SelectionPanel({
   const push = () => project.pushSnapshotToHistory()
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <BackHeader
-        label={PART_LABELS[part.type] ?? part.type}
-        onBack={() => project.setSelection(null)}
-      />
       <CameraSection target={part} multiple={false} />
       <Section title="Rotation">
         <div className="flex gap-2.5">
@@ -311,16 +302,31 @@ export const EditorLeftPanel = observer(function EditorLeftPanel({
 }) {
   const part = project.selection
   return (
-    <aside className={PANEL}>
+    <Island
+      resizeEdge="right"
+      storageKey="bulbus.panel.build"
+      defaultWidth={256}
+      heightClass="min-h-0 flex-1"
+      header={
+        part ? (
+          <BackTitle
+            label={PART_LABELS[part.type] ?? part.type}
+            onBack={() => project.setSelection(null)}
+          />
+        ) : (
+          <IslandTitle>Build</IslandTitle>
+        )
+      }
+    >
       {part ? (
-        <SelectionPanel project={project} part={part} />
+        <SelectionBody project={project} part={part} />
       ) : (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <CameraSection target={project} multiple />
           <Palette project={project} />
-        </>
+        </div>
       )}
-    </aside>
+    </Island>
   )
 })
 
@@ -392,29 +398,42 @@ export const SimLeftPanel = observer(function SimLeftPanel({
   const [, force] = useForceTick(simulator, 30)
   void force
   return (
-    <aside className={SIM_PANEL}>
-      {part ? (
-        <div className="flex flex-1 flex-col overflow-y-auto">
-          <BackHeader
+    <Island
+      resizeEdge="right"
+      storageKey="bulbus.panel.sim"
+      defaultWidth={256}
+      heightClass="h-auto max-h-full self-start"
+      header={
+        part ? (
+          <BackTitle
             label={PART_LABELS[part.type] ?? part.type}
             onBack={() => simulator.setSelection(null)}
           />
-          <CameraSection
-            target={{
-              fitCamera: () => simulator.fitCameraTo(part),
-              lookAtOnAxis: (a) => simulator.lookAtPartOnAxis(part, a),
-            }}
-            multiple={false}
-          />
-          {part instanceof ArduinoUno && <ArduinoLogs part={part} />}
-          {(part instanceof Potentiometer || part instanceof Tmp36) && (
-            <SimLiveControls part={part} />
-          )}
-        </div>
-      ) : (
-        <CameraSection target={simulator} multiple />
-      )}
-    </aside>
+        ) : (
+          <IslandTitle>Simulation</IslandTitle>
+        )
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {part ? (
+          <>
+            <CameraSection
+              target={{
+                fitCamera: () => simulator.fitCameraTo(part),
+                lookAtOnAxis: (a) => simulator.lookAtPartOnAxis(part, a),
+              }}
+              multiple={false}
+            />
+            {part instanceof ArduinoUno && <ArduinoLogs part={part} />}
+            {(part instanceof Potentiometer || part instanceof Tmp36) && (
+              <SimLiveControls part={part} />
+            )}
+          </>
+        ) : (
+          <CameraSection target={simulator} multiple />
+        )}
+      </div>
+    </Island>
   )
 })
 

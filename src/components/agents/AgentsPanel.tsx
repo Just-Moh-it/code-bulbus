@@ -8,6 +8,7 @@ import {
   TrashIcon,
 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
+import { Island, IslandTitle } from '#/components/ui/island'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,88 +114,91 @@ export function AgentsPanel({
   }
 
   return (
-    <aside
-      className={`pointer-events-auto flex min-h-0 w-96 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm ${compact ? 'h-1/2 self-start' : 'h-full'}`}
-    >
-      <header
-        className={`flex h-10 shrink-0 items-center justify-between gap-2 pr-1.5 pl-3 border-b border-border`}
-      >
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-          {title}
-        </span>
-        <div className="flex shrink-0 items-center gap-0.5 text-muted-foreground">
-          {selected && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="New chat"
-                  onClick={() => setSelected(null)}
-                >
-                  <PlusIcon />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New chat</TooltipContent>
-            </Tooltip>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="History">
-                <HistoryIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72">
-              <DropdownMenuLabel>Chats</DropdownMenuLabel>
-              {chats.length === 0 && (
-                <DropdownMenuItem disabled>No chats yet</DropdownMenuItem>
-              )}
-              {chats.map((c) => (
-                <DropdownMenuItem
-                  key={c.url}
-                  onSelect={() => setSelected(c.url)}
-                >
-                  <span
-                    className={`size-2 shrink-0 rounded-full ${c.status === 'running' ? 'bg-primary' : 'bg-gray-300'}`}
-                  />
-                  <span className="min-w-0 flex-1 truncate">
-                    {c.tags.name ?? c.url}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {selected && (
+    <Island
+      resizeEdge="left"
+      storageKey="bulbus.panel.chat"
+      defaultWidth={384}
+      heightClass={compact ? 'h-1/2 self-start' : 'h-full'}
+      header={
+        <>
+          <IslandTitle>{title}</IslandTitle>
+          <div className="flex shrink-0 items-center gap-0.5 text-muted-foreground">
+            {selected && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="New chat"
+                    onClick={() => setSelected(null)}
+                  >
+                    <PlusIcon />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>New chat</TooltipContent>
+              </Tooltip>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Chat menu">
-                  <MoreHorizontalIcon />
+                <Button variant="ghost" size="icon-sm" aria-label="History">
+                  <HistoryIcon />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onSelect={() => setSelected(null)}>
-                  <PlusIcon /> New chat
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => void remove()}
-                >
-                  <TrashIcon /> Delete
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel>Chats</DropdownMenuLabel>
+                {chats.length === 0 && (
+                  <DropdownMenuItem disabled>No chats yet</DropdownMenuItem>
+                )}
+                {chats.map((c) => (
+                  <DropdownMenuItem
+                    key={c.url}
+                    onSelect={() => setSelected(c.url)}
+                  >
+                    <span
+                      className={`size-2 shrink-0 rounded-full ${c.status === 'running' ? 'bg-primary' : 'bg-gray-300'}`}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {c.tags.name ?? c.url}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          {action && (
-            <span className="ml-1 pl-1.5 border-l border-border">{action}</span>
-          )}
-        </div>
-      </header>
+            {selected && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" aria-label="Chat menu">
+                    <MoreHorizontalIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onSelect={() => setSelected(null)}>
+                    <PlusIcon /> New chat
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => void remove()}
+                  >
+                    <TrashIcon /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {action && (
+              <span className="ml-1 border-l border-border pl-1.5">
+                {action}
+              </span>
+            )}
+          </div>
+        </>
+      }
+    >
       <ChatThread
         key={selected ?? 'new'}
         entityUrl={selected}
         onCreate={create}
       />
-    </aside>
+    </Island>
   )
 }
