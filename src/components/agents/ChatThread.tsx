@@ -243,6 +243,11 @@ export function ChatThread({
 }) {
   const { db, error } = useEntityDb(entityUrl)
   const chat = useChat(db)
+  // dev aid: inspect the live stream db from the console
+  useEffect(() => {
+    if (import.meta.env.DEV)
+      (window as unknown as { chatDb?: EntityStreamDB | null }).chatDb = db
+  }, [db])
   const [sending, setSending] = useState(false)
   const isBusy = sending || chat.state === 'working' || chat.state === 'queued'
 
