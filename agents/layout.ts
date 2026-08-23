@@ -287,9 +287,10 @@ export function placeFree(circuit: CircuitJSON, part: PartJSON) {
   const candidates: { x: number; z: number }[] = []
   if (board) {
     const b = footprint(board)
+    // column 1 is at −x, where the packer starts filling the board: keep table parts on that side so wires stay short
     const sides = [
-      b.x + b.hw + gap + me.width / 2,
       b.x - b.hw - gap - me.width / 2,
+      b.x + b.hw + gap + me.width / 2,
     ]
     for (const x of sides)
       for (let k = 0; k < 6; k++) {
@@ -410,6 +411,50 @@ export function danglingWires(circuit: CircuitJSON): WireJSON[] {
       )
     }),
   )
+}
+
+/**
+ * Wires whose removal separates the nets of `a` and `b`. The model thinks in
+ * nets ("disconnect the button from the resistor"), while wires run between
+ * holes, so we try each wire on the shared net and keep the ones that split it.
+ * Returns [] when the two pins are not on one net; null when they are joined
+ * by something other than a wire (legs sharing a strip, an internal join).
+ */
+export function splittingWires(
+  circuit: CircuitJSON,
+  a: { part: PartJSON; terminal: string },
+  b: { part: PartJSON; terminal: string },
+): WireJSON[] | null {
+  const key = (t: { part: PartJSON; terminal: string }) =>
+    `${t.part.id}:${t.terminal}`
+  const joined = (c: CircuitJSON) => {
+    const n = nodeMap(c)
+    return n.get(key(a)) !== undefined && n.get(key(a)) === n.get(key(b))
+  }
+  if (!joined(circuit)) return []
+  const nodes = nodeMap(circuit)
+  const net = nodes.get(key(a))
+  const endNode = (id: string) => nodes.get(`${id}:t1`)
+  const onNet = circuit.wires.filter(
+    (w) => endNode(w.partOneId) === net && endNode(w.partTwoId) === net,
+  )
+  const out: WireJSON[] = []
+  const work: CircuitJSON = circuit
+  for (const w of onNet) {
+    const without: CircuitJSON = {
+      parts: work.parts.filter(
+        (p) => p.id !== w.partOneId && p.id !== w.partTwoId,
+      ),
+      wires: work.wires.filter((x) => x.id !== w.id),
+    }
+    // a wire that leaves them joined is not on the only path; a wire that splits them is what we want
+    const stillJoined = joined(without)
+    if (!stillJoined) {
+      out.push(w)
+      return out
+    }
+  }
+  return out.length ? out : null
 }
 
 // ---------------------------------------------------------------- connect

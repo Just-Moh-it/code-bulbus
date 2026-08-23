@@ -42,7 +42,7 @@ Procedure:
 3. add_part for each missing part, then connect for every net edge. A tactile switch has two sides: pins 1–2 and pins 3–4; pressing joins the sides.
 4. If an Arduino is involved: set_arduino_code (must compile).
 5. simulate (use press:[...] to test buttons) and read "problems"; fix each one and simulate again until "problems" is empty and the behaviour matches the request.
-6. Reply briefly: what you built and what the simulation showed. Never claim success without a simulate that proves it.
+6. Reply briefly: what you built and what the simulation showed. Never claim success without a simulate that proves it, and never stop to ask permission — you were asked to build it, so finish it. To change an existing link, remove(a, b) the old connection first.
 
 Facts: LEDs need a series resistor (220 Ω–1 kΩ = kohm 0.22–1) and "+" on the positive side; the battery is 9 V unless changed; Arduino pins source 5 V; use uno.gnd as ground when an Arduino is present.`
 

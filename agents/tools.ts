@@ -46,6 +46,7 @@ import {
   placeOnBoard,
   planConnect,
   danglingWires,
+  splittingWires,
   terminalDefs,
 } from './layout'
 import type { NetMember } from './layout'
@@ -248,13 +249,15 @@ function describeCircuit(circuit: CircuitJSON) {
       ? `breadboard.${m.terminal}`
       : `${m.type}:${short(m.partId)}.${m.terminal}`
   const pins = (n: NetMember[]) => n.filter((m) => m.type !== 'breadboard')
+  // unused pins of a microcontroller are normal, not a problem
+  const HOSTS = new Set(['arduino-uno', 'raspberry-pi'])
   const all = nets(circuit)
   const connected = all
     .filter((n) => pins(n).length > 1)
     .map((n) => n.map(label))
   // a pin alone on its net (an unused strip or rail does not count as a connection)
   const floating = all
-    .filter((n) => pins(n).length === 1)
+    .filter((n) => pins(n).length === 1 && !HOSTS.has(pins(n)[0].type))
     .map((n) => label(pins(n)[0]))
   return { parts, nets: connected, floating, wires: circuit.wires.length }
 }
@@ -427,7 +430,7 @@ export const remove = tool({
   name: 'remove',
   label: 'Remove',
   description:
-    'Remove a part (with its wires) or disconnect two pins (removes the wire joining them).',
+    'Remove a part (with its wires), or disconnect two pins: removes the wire whose removal separates their nets.',
   parameters: Type.Object({
     projectId: ProjectId,
     part: Type.Optional(
@@ -442,22 +445,18 @@ export const remove = tool({
     const doomed = new Set<string>()
     if (part) doomed.add(resolvePart(c, part).id)
     else if (a && b) {
-      // the wire whose ends sit on the two pins' nets and whose removal is what the model means
       const ra = resolveRef(c, a)
       const rb = resolveRef(c, b)
-      const endHole = (e: PartJSON) => e.terminals[0]?.connections[0]
-      const onNet = (e: PartJSON, r: { part: PartJSON; terminal: string }) =>
-        e.parentId === r.part.id && endHole(e) === r.terminal
-      const hit = c.wires.find((w) => {
-        const e1 = c.parts.find((p) => p.id === w.partOneId)!
-        const e2 = c.parts.find((p) => p.id === w.partTwoId)!
-        return (
-          (onNet(e1, ra) && onNet(e2, rb)) || (onNet(e1, rb) && onNet(e2, ra))
+      const wires = splittingWires(c, ra, rb)
+      if (wires === null)
+        throw new Error(
+          `${a} and ${b} are joined without a wire (legs on one strip, or pins joined inside a part) — remove or re-add a part instead`,
         )
-      })
-      if (!hit) throw new Error(`No wire runs directly between ${a} and ${b}`)
-      doomed.add(hit.partOneId)
-      doomed.add(hit.partTwoId)
+      if (wires.length === 0) return { alreadyDisconnected: true }
+      for (const w of wires) {
+        doomed.add(w.partOneId)
+        doomed.add(w.partTwoId)
+      }
     } else throw new Error('Give either part, or both a and b')
     let grew = true
     while (grew) {

@@ -6,6 +6,7 @@ import {
   placeFree,
   placeOnBoard,
   planConnect,
+  splittingWires,
 } from './layout'
 import { defaultProject } from '#/lib/projects'
 import type { CircuitJSON, PartJSON, PartType } from '#/sim/types'
@@ -157,5 +158,42 @@ describe('danglingWires', () => {
     expect(danglingWires(c)).toEqual([])
     c.parts = c.parts.filter((p) => p.id !== r.id)
     expect(danglingWires(c).map((w) => w.id)).toEqual([plan.wire.id])
+  })
+})
+
+describe('splittingWires', () => {
+  test('finds the jumper joining two pins and reports non-wire joins', () => {
+    const c = blank()
+    const led = add(c, 'led')
+    const r = add(c, 'resistor')
+    const sw = add(c, 'tactile-switch')
+    const plan = planConnect(
+      c,
+      { part: r, terminal: 't2' },
+      { part: led, terminal: '+' },
+    )!
+    c.parts.push(...plan.ends)
+    c.wires.push(plan.wire)
+    expect(
+      splittingWires(
+        c,
+        { part: r, terminal: 't2' },
+        { part: led, terminal: '+' },
+      )?.map((w) => w.id),
+    ).toEqual([plan.wire.id])
+    expect(
+      splittingWires(
+        c,
+        { part: r, terminal: 't1' },
+        { part: led, terminal: '+' },
+      ),
+    ).toEqual([])
+    expect(
+      splittingWires(
+        c,
+        { part: sw, terminal: '1' },
+        { part: sw, terminal: '2' },
+      ),
+    ).toBeNull()
   })
 })
