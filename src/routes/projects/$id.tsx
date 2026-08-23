@@ -150,7 +150,11 @@ function ProjectPage() {
             </div>
           </div>
           <div className="flex-1" />
-          <AgentsPanel projectId={id} action={simulateButton} />
+          <AgentsPanel
+            projectId={id}
+            action={simulateButton}
+            collapsed={!!simulator}
+          />
         </div>
       </div>
     </div>

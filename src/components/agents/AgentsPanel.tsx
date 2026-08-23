@@ -76,10 +76,13 @@ function useChats(projectId: string) {
 export function AgentsPanel({
   projectId,
   action,
+  collapsed = false,
 }: {
   projectId: string
   /** Rendered at the right of the header (the Simulate control). */
   action?: React.ReactNode
+  /** Header only (while simulating). */
+  collapsed?: boolean
 }) {
   const chats = useChats(projectId)
   const [selected, setSelected] = useState<string | null>(null)
@@ -110,8 +113,12 @@ export function AgentsPanel({
   }
 
   return (
-    <aside className="pointer-events-auto flex h-full min-h-0 w-96 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm">
-      <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border pr-1.5 pl-3">
+    <aside
+      className={`pointer-events-auto flex min-h-0 w-96 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm ${collapsed ? 'h-auto' : 'h-full'}`}
+    >
+      <header
+        className={`flex h-10 shrink-0 items-center justify-between gap-2 pr-1.5 pl-3 ${collapsed ? '' : 'border-b border-border'}`}
+      >
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {title}
         </span>
@@ -183,11 +190,13 @@ export function AgentsPanel({
           )}
         </div>
       </header>
-      <ChatThread
-        key={selected ?? 'new'}
-        entityUrl={selected}
-        onCreate={create}
-      />
+      {!collapsed && (
+        <ChatThread
+          key={selected ?? 'new'}
+          entityUrl={selected}
+          onCreate={create}
+        />
+      )}
     </aside>
   )
 }
