@@ -14,7 +14,10 @@ import {
   createEntityRegistry,
   createRuntimeHandler,
 } from '@electric-ax/agents-runtime'
-import { bulbusTools } from './tools'
+import { activity, bulbusTools, resetActivity } from './tools'
+
+/** How many times the critic sends the model back after it stops with unresolved problems. */
+const MAX_CRITIC_ROUNDS = 2
 
 const ELECTRIC_AGENTS_URL =
   process.env.ELECTRIC_AGENTS_URL ?? 'http://localhost:4437'
@@ -60,7 +63,27 @@ registry.define(ENTITY_TYPE, {
       provider: PROVIDER,
       tools: [...ctx.electricTools, ...bulbusTools(projectId)],
     })
+    resetActivity(projectId)
     await ctx.agent.run()
+    // Deterministic critic: a build is only done when a simulate after the last
+    // edit reports no problems. Nudge the model back to work, at most twice.
+    for (let round = 0; round < MAX_CRITIC_ROUNDS; round++) {
+      const a = activity.get(projectId)
+      if (!a?.edited) break
+      let nudge: string | null = null
+      if (!a.simulated)
+        nudge =
+          'You changed the circuit but never ran simulate. Run it now (tap buttons with press:[{part, ms}] where the behaviour depends on a press), then fix every entry in "problems" and simulate again.'
+      else if (a.stale)
+        nudge =
+          'You changed the circuit after the last simulate. Simulate again and fix anything in "problems".'
+      else if (a.problems.length)
+        nudge = `The last simulate still reports problems:\n- ${a.problems.join('\n- ')}\nFix them (do not explain them away) and simulate again until "problems" is empty.`
+      if (!nudge) break
+      resetActivity(projectId)
+      activity.get(projectId)!.edited = true
+      await ctx.agent.run(nudge)
+    }
   },
 })
 

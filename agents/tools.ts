@@ -85,11 +85,39 @@ async function saveCircuit(project: ProjectJSON) {
   const base = baselines.get(project) ?? { parts: [], wires: [] }
   const ops = diffCircuit(base, project.circuit)
   if (isEmptyOps(ops)) return
+  const a = act(project.id)
+  a.edited = true
+  a.stale = true
   await convex.mutation(api.circuit.apply, { projectId: project.id, ...ops })
   baselines.set(project, structuredClone(project.circuit))
 }
 
 const short = (id: string) => id.slice(0, 8)
+
+/**
+ * What happened to a project during the current wake, so the server can run a
+ * deterministic critic after the model stops: did it edit, did it verify, and
+ * what the last verification said.
+ */
+export interface Activity {
+  edited: boolean
+  simulated: boolean
+  /** circuit changed after the last simulate */
+  stale: boolean
+  problems: string[]
+}
+export const activity = new Map<string, Activity>()
+export const resetActivity = (projectId: string) =>
+  activity.set(projectId, {
+    edited: false,
+    simulated: false,
+    stale: false,
+    problems: [],
+  })
+const act = (projectId: string) => {
+  if (!activity.has(projectId)) resetActivity(projectId)
+  return activity.get(projectId)!
+}
 
 /** Words the model is likely to use for a type. */
 const TYPE_ALIASES: Record<string, PartTypeT[]> = {
@@ -811,6 +839,10 @@ export function bulbusTools(projectId: string): AgentTool[] {
       for (const f of describeCircuit(project.circuit).floating)
         problems.push(`${f} is connected to nothing`)
       problems.push(...errors.map((e) => `spice: ${e}`))
+      const a = act(projectId)
+      a.simulated = true
+      a.stale = false
+      a.problems = problems
       return {
         simulatedMs: t,
         pressed: press,
