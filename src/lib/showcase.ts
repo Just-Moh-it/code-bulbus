@@ -239,232 +239,29 @@ void setup() {
 
 const SHOWCASE: [string, string, (id: string, name: string) => ProjectJSON][] =
   [
-    [
-      'Thermostat',
-      'TMP36 + setpoint dial + LCD drive heat/cool LEDs with hysteresis',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-const float HYST = 1.0;
-void loop() {
-  float amb = readF();
-  int set = dial(50, 80);
-  bool heat = amb < set - HYST, cool = amb > set + HYST;
-  digitalWrite(LED1, heat); digitalWrite(LED2, cool);
-  lcd.setCursor(0, 0); lcd.print("Amb "); lcd.print((int)amb); lcd.print("F  Set "); lcd.print(set); lcd.print("F ");
-  line(1, heat ? "HEATING" : cool ? "COOLING" : "IDLE");
-  delay(200);
+    'Traffic Light',
+    'Red, amber and green on a real intersection cycle with an all-red safety gap',
+    (id, name) => {
+      const b = new Build(`const int RED = 8, AMBER = 9, GREEN = 10;
+void setup() { pinMode(RED, OUTPUT); pinMode(AMBER, OUTPUT); pinMode(GREEN, OUTPUT); }
+void show(bool r, bool a, bool g, int ms) {
+  digitalWrite(RED, r); digitalWrite(AMBER, a); digitalWrite(GREEN, g);
+  delay(ms);
 }
-`,
-          { temp: 22, leds: ['red', 'blue'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Baby Room Monitor',
-      'Keeps a nursery in the safe 68–72 °F band; alarm LED and LCD advice',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-float peak = -100, low = 200;
 void loop() {
-  float t = readF();
-  if (t > peak) peak = t; if (t < low) low = t;
-  int target = dial(66, 74);
-  bool cold = t < target - 2, warm = t > target + 2, ok = !cold && !warm;
-  digitalWrite(LED1, ok);                 // green: comfortable
-  digitalWrite(LED2, !ok && blink(400));  // red: out of band, blinking
-  lcd.setCursor(0, 0); lcd.print("Nursery "); lcd.print(t, 1); lcd.print("F   ");
-  lcd.setCursor(0, 1);
-  if (ok) { lcd.print("OK  lo"); lcd.print((int)low); lcd.print(" hi"); lcd.print((int)peak); lcd.print("  "); }
-  else if (cold) lcd.print("TOO COLD add blanket");
-  else lcd.print("TOO WARM open window");
-  delay(250);
+  show(1, 0, 0, 4000);  // stop
+  show(1, 1, 0, 1000);  // get ready
+  show(0, 0, 1, 4000);  // go
+  show(0, 1, 0, 1500);  // slow down
+  show(1, 0, 0, 1000);  // all-red gap
 }
-`,
-          { temp: 21, leds: ['green', 'red'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Greenhouse Controller',
-      'Heater, vent and status LEDs from a vent-open threshold you set',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-void loop() {
-  float t = readF();
-  int vent = dial(70, 95);      // open the vent above this
-  int heater = vent - 25;       // run the heater below this
-  bool heat = t < heater, open = t > vent;
-  digitalWrite(LED1, heat); digitalWrite(LED2, open); digitalWrite(LED3, !heat && !open);
-  lcd.setCursor(0, 0); lcd.print("Air "); lcd.print((int)t); lcd.print("F  vent@"); lcd.print(vent); lcd.print(" ");
-  line(1, heat ? "Heater ON" : open ? "Vent OPEN" : "Holding");
-  delay(200);
-}
-`,
-          { temp: 27, leds: ['red', 'blue', 'green'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Sous-vide Controller',
-      'Dial a water target 50–90 °C; heater LED with 0.5 °C hysteresis, READY when settled',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-bool heating = false;
-void loop() {
-  float w = readC();
-  int target = dial(50, 90);
-  if (w < target - 0.5) heating = true;
-  if (w > target + 0.5) heating = false;
-  bool ready = abs(w - target) <= 1.0;
-  digitalWrite(LED1, heating); digitalWrite(LED2, ready);
-  lcd.setCursor(0, 0); lcd.print("Water "); lcd.print(w, 1); lcd.print("C    ");
-  lcd.setCursor(0, 1); lcd.print("Set "); lcd.print(target); lcd.print("C "); lcd.print(ready ? "READY  " : heating ? "HEATING" : "COOLING");
-  delay(200);
-}
-`,
-          { temp: 55, leds: ['red', 'green'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Fridge Alarm',
-      'Warns when the fridge drifts above a safe limit and counts how long it has',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-unsigned long overSince = 0;
-void loop() {
-  float t = readC();
-  int limit = dial(2, 10);
-  bool over = t > limit;
-  if (over && overSince == 0) overSince = millis();
-  if (!over) overSince = 0;
-  digitalWrite(LED1, !over); digitalWrite(LED2, over && blink(300));
-  lcd.setCursor(0, 0); lcd.print("Fridge "); lcd.print(t, 1); lcd.print("C max"); lcd.print(limit); lcd.print(" ");
-  lcd.setCursor(0, 1);
-  if (over) { lcd.print("WARM for "); lcd.print((millis() - overSince) / 1000); lcd.print("s    "); }
-  else lcd.print("Food is safe    ");
-  delay(200);
-}
-`,
-          { temp: 4, leds: ['green', 'red'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Server Rack Monitor',
-      'Green / amber / red intake-temperature status with an adjustable warning point',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-void loop() {
-  float t = readC();
-  int warn = dial(22, 35);
-  int crit = warn + 5;
-  int level = t >= crit ? 2 : t >= warn ? 1 : 0;
-  digitalWrite(LED1, level == 0); digitalWrite(LED2, level == 1); digitalWrite(LED3, level == 2 && blink(200));
-  lcd.setCursor(0, 0); lcd.print("Intake "); lcd.print(t, 1); lcd.print("C     ");
-  lcd.setCursor(0, 1);
-  if (level == 2) lcd.print("CRITICAL shutdown");
-  else if (level == 1) { lcd.print("WARN >"); lcd.print(warn); lcd.print("C fans up  "); }
-  else { lcd.print("Nominal  warn@"); lcd.print(warn); lcd.print(" "); }
-  delay(200);
-}
-`,
-          { temp: 28, leds: ['green', 'yellow', 'red'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Brewing Fermenter',
-      'Holds beer at the yeast target with heat/cool control and a day counter',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-void loop() {
-  float t = readC();
-  int target = dial(15, 25);
-  bool heat = t < target - 1, cool = t > target + 1;
-  digitalWrite(LED1, heat); digitalWrite(LED2, cool); digitalWrite(LED3, !heat && !cool);
-  unsigned long days = millis() / 86400000UL;
-  lcd.setCursor(0, 0); lcd.print("Beer "); lcd.print(t, 1); lcd.print("C ->"); lcd.print(target); lcd.print("C ");
-  lcd.setCursor(0, 1); lcd.print(heat ? "Heat pad ON " : cool ? "Chiller ON  " : "Holding     "); lcd.print("d"); lcd.print(days);
-  delay(200);
-}
-`,
-          { temp: 20, leds: ['red', 'blue', 'green'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Kitchen Timer',
-      'Set seconds with the dial; LCD counts down and the LED fires at zero',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-unsigned long started = 0; int total = 0;
-void loop() {
-  int d = dial(5, 60);
-  if (d != total) { total = d; started = millis(); }
-  long left = total - (millis() - started) / 1000;
-  if (left < 0) left = 0;
-  digitalWrite(LED1, left == 0 && blink(250));
-  lcd.setCursor(0, 0); lcd.print("Timer "); lcd.print(total); lcd.print("s        ");
-  lcd.setCursor(0, 1);
-  if (left > 0) { lcd.print("Left  "); lcd.print(left); lcd.print("s        "); } else lcd.print("DING! turn dial ");
-  delay(100);
-}
-`,
-          { temp: 22, leds: ['red'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Fever Thermometer',
-      'Skin-contact reading with peak hold; fever flag above 100.4 °F',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-float peak = 0;
-void loop() {
-  float f = readF();
-  if (f > peak) peak = f;
-  bool fever = peak >= 100.4;
-  digitalWrite(LED1, !fever); digitalWrite(LED2, fever && blink(300));
-  lcd.setCursor(0, 0); lcd.print("Now  "); lcd.print(f, 1); lcd.print("F      ");
-  lcd.setCursor(0, 1); lcd.print("Peak "); lcd.print(peak, 1); lcd.print(fever ? "F FEVER" : "F ok   ");
-  delay(200);
-}
-`,
-          { temp: 38.2, dial: false, leds: ['green', 'red'] },
-        ).done(id, name),
-    ],
-
-    [
-      'Wine Cellar Guard',
-      'Keeps bottles at cellar temperature; warns when too warm or too cold',
-      (id, name) =>
-        bench(
-          `${PRELUDE}
-void loop() {
-  float t = readC();
-  int target = dial(10, 16);
-  bool warm = t > target + 1.5, cold = t < target - 1.5;
-  digitalWrite(LED1, !warm && !cold); digitalWrite(LED2, warm); digitalWrite(LED3, cold);
-  lcd.setCursor(0, 0); lcd.print("Cellar "); lcd.print(t, 1); lcd.print("C     ");
-  lcd.setCursor(0, 1); lcd.print(warm ? "Too warm  " : cold ? "Too cold  " : "Perfect   "); lcd.print("set"); lcd.print(target);
-  delay(200);
-}
-`,
-          { temp: 13, leds: ['green', 'yellow', 'blue'] },
-        ).done(id, name),
-    ],
+`)
+      b.led('8', 20, 'red')
+      b.led('~9', 27, 'yellow')
+      b.led('~10', 34, 'green')
+      return b.done(id, name)
+    },
   ]
-
 export const SHOWCASE_ID = (i: number) =>
   `11111111-0000-4000-8000-0000000000${String(i + 1).padStart(2, '0')}`
 
