@@ -16,10 +16,10 @@ export function SiteHeader() {
       </Link>
       <div className="flex px-6">
         <Link
-          to="/explore"
+          to="/projects"
           className="text-[13px] font-medium text-muted-foreground hover:text-foreground"
         >
-          Explore
+          Projects
         </Link>
       </div>
     </nav>
@@ -86,8 +86,9 @@ export function ProjectGrid({
   )
 }
 
+/** Landing: the hero plus the curated (public showcase) projects, so visitors land on good circuits. */
 function Home() {
-  const projects = useQuery(api.projects.list, {})
+  const projects = useQuery(api.projects.list, { isPublic: true })
   const navigate = useNavigate()
   const open = (template: 'blank' | 'thermostat') =>
     void navigate({
@@ -126,12 +127,12 @@ function Home() {
         </section>
         <section className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10">
           <div className="flex items-baseline justify-between">
-            <SectionLabel>My projects</SectionLabel>
+            <SectionLabel>Curated projects</SectionLabel>
             <Link
-              to="/explore"
+              to="/projects"
               className="text-[13px] font-medium text-primary hover:underline"
             >
-              Explore all
+              All projects
             </Link>
           </div>
           <ProjectGrid projects={projects} />

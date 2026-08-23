@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as ApiCompileRouteImport } from './routes/api/compile'
+import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 import { Route as ApiAgentsAttachmentRouteImport } from './routes/api/agents/attachment'
 import { Route as ApiAgentsDeleteRouteImport } from './routes/api/agents/delete'
@@ -32,6 +33,11 @@ const ExploreRoute = ExploreRouteImport.update({
 const ApiCompileRoute = ApiCompileRouteImport.update({
   id: '/api/compile',
   path: '/api/compile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/explore': typeof ExploreRoute
   '/api/compile': typeof ApiCompileRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/api/agents/attachment': typeof ApiAgentsAttachmentRoute
   '/api/agents/delete': typeof ApiAgentsDeleteRoute
   '/api/agents/send': typeof ApiAgentsSendRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/explore': typeof ExploreRoute
   '/api/compile': typeof ApiCompileRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/projects': typeof ProjectsIndexRoute
   '/api/agents/attachment': typeof ApiAgentsAttachmentRoute
   '/api/agents/delete': typeof ApiAgentsDeleteRoute
   '/api/agents/send': typeof ApiAgentsSendRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/explore': typeof ExploreRoute
   '/api/compile': typeof ApiCompileRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/api/agents/attachment': typeof ApiAgentsAttachmentRoute
   '/api/agents/delete': typeof ApiAgentsDeleteRoute
   '/api/agents/send': typeof ApiAgentsSendRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/explore'
     | '/api/compile'
     | '/projects/$id'
+    | '/projects/'
     | '/api/agents/attachment'
     | '/api/agents/delete'
     | '/api/agents/send'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/explore'
     | '/api/compile'
     | '/projects/$id'
+    | '/projects'
     | '/api/agents/attachment'
     | '/api/agents/delete'
     | '/api/agents/send'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/explore'
     | '/api/compile'
     | '/projects/$id'
+    | '/projects/'
     | '/api/agents/attachment'
     | '/api/agents/delete'
     | '/api/agents/send'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   ApiCompileRoute: typeof ApiCompileRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
   ApiAgentsAttachmentRoute: typeof ApiAgentsAttachmentRoute
   ApiAgentsDeleteRoute: typeof ApiAgentsDeleteRoute
   ApiAgentsSendRoute: typeof ApiAgentsSendRoute
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/api/compile'
       fullPath: '/api/compile'
       preLoaderRoute: typeof ApiCompileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/$id': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   ApiCompileRoute: ApiCompileRoute,
   ProjectsIdRoute: ProjectsIdRoute,
+  ProjectsIndexRoute: ProjectsIndexRoute,
   ApiAgentsAttachmentRoute: ApiAgentsAttachmentRoute,
   ApiAgentsDeleteRoute: ApiAgentsDeleteRoute,
   ApiAgentsSendRoute: ApiAgentsSendRoute,
