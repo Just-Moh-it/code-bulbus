@@ -14,6 +14,13 @@ import {
   createEntityRegistry,
   createRuntimeHandler,
 } from '@electric-ax/agents-runtime'
+import { getModels } from '@mariozechner/pi-ai'
+import type {
+  Api,
+  KnownProvider,
+  Model,
+  ThinkingLevel,
+} from '@mariozechner/pi-ai'
 import { activity, bulbusTools, resetActivity } from './tools'
 
 /** How many times the critic sends the model back after it stops with unresolved problems. */
@@ -23,9 +30,11 @@ const ELECTRIC_AGENTS_URL =
   process.env.ELECTRIC_AGENTS_URL ?? 'http://localhost:4437'
 const PORT = Number(process.env.AGENTS_APP_PORT ?? 4440)
 const SERVE_URL = process.env.AGENTS_SERVE_URL ?? `http://localhost:${PORT}`
-const MODEL = process.env.AGENTS_MODEL ?? 'gpt-5.1'
+const MODEL_ID = process.env.AGENTS_MODEL ?? 'gpt-5.1'
+/** Thinking level passed to the model (minimal | low | medium | high | xhigh). */
+const REASONING = (process.env.AGENTS_REASONING ?? 'high') as ThinkingLevel
 /** pi-ai provider id (openai | anthropic | xai | openrouter | …); the model id must belong to it. */
-const PROVIDER = (process.env.AGENTS_PROVIDER ?? 'openai')
+const PROVIDER = process.env.AGENTS_PROVIDER ?? 'openai'
 const KEY_VARS: Record<string, string> = {
   openai: 'OPENAI_API_KEY',
   anthropic: 'ANTHROPIC_API_KEY',
@@ -37,6 +46,29 @@ const keyVar = KEY_VARS[PROVIDER]
 if (keyVar && !process.env[keyVar]) {
   console.warn(`${keyVar} is not set — agent runs will fail until it is.`)
 }
+
+/**
+ * pi-ai only knows the models in its catalogue. A newer id (e.g. gpt-5.6-luna)
+ * is resolved by cloning a catalogued sibling of the same provider and
+ * swapping the id — the API surface is the same, only the name is new.
+ */
+function resolveModel(): Model<Api> | string {
+  const known = getModels(PROVIDER as KnownProvider) as Model<Api>[]
+  if (known.some((m) => m.id === MODEL_ID)) return MODEL_ID
+  const likeId =
+    process.env.AGENTS_MODEL_LIKE ??
+    (PROVIDER === 'openai' ? 'gpt-5.5' : known[0]?.id)
+  const like = known.find((m) => m.id === likeId)
+  if (!like)
+    throw new Error(
+      `Unknown model "${MODEL_ID}" for ${PROVIDER} and no AGENTS_MODEL_LIKE sibling to clone`,
+    )
+  console.warn(
+    `model ${MODEL_ID} is not in pi-ai's catalogue; using ${like.id}'s settings with the new id`,
+  )
+  return { ...like, id: MODEL_ID, name: MODEL_ID }
+}
+const MODEL = resolveModel()
 
 export const ENTITY_TYPE = 'bulbus'
 
@@ -67,6 +99,7 @@ registry.define(ENTITY_TYPE, {
       systemPrompt: `${SYSTEM_PROMPT}\n\nProject id: ${projectId}. Pins are written <part>.<pin> or <type>:<id>.<pin> exactly as get_project prints them.`,
       model: MODEL,
       provider: PROVIDER,
+      reasoning: REASONING,
       tools: [...ctx.electricTools, ...bulbusTools(projectId)],
     })
     resetActivity(projectId)
@@ -106,7 +139,14 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' })
-    res.end(JSON.stringify({ ok: true, types: [ENTITY_TYPE], model: MODEL }))
+    res.end(
+      JSON.stringify({
+        ok: true,
+        types: [ENTITY_TYPE],
+        model: MODEL_ID,
+        reasoning: REASONING,
+      }),
+    )
     return
   }
   res.writeHead(404)
@@ -116,6 +156,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, async () => {
   await runtime.registerTypes()
   console.log(
-    `bulbus agent server on ${SERVE_URL} (coordinator ${ELECTRIC_AGENTS_URL}, ${PROVIDER}/${MODEL})`,
+    `bulbus agent server on ${SERVE_URL} (coordinator ${ELECTRIC_AGENTS_URL}, ${PROVIDER}/${MODEL_ID} reasoning=${REASONING})`,
   )
 })
