@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
+/* Streamdown's markdown components carry their Tailwind classes in its dist */
+@source '../node_modules/streamdown/dist/*.js';
 
 @custom-variant dark (&:is(.dark *));
 
