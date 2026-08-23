@@ -14,6 +14,7 @@ import {
   createEntityRegistry,
   createRuntimeHandler,
 } from '@electric-ax/agents-runtime'
+import type { AgentConfig } from '@electric-ax/agents-runtime'
 import { activity, bulbusTools, resetActivity } from './tools'
 
 /** How many times the critic sends the model back after it stops with unresolved problems. */
@@ -25,17 +26,25 @@ const PORT = Number(process.env.AGENTS_APP_PORT ?? 4440)
 const SERVE_URL = process.env.AGENTS_SERVE_URL ?? `http://localhost:${PORT}`
 const MODEL = process.env.AGENTS_MODEL ?? 'gpt-5.1'
 /** pi-ai provider id; models are looked up within it. */
-const PROVIDER = (process.env.AGENTS_PROVIDER ?? 'openai') as
-  'openai' | 'anthropic'
-
-const keyVar = PROVIDER === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY'
-if (!process.env[keyVar]) {
+/** pi-ai provider id (openai | anthropic | xai | openrouter | …); the model id must belong to it. */
+const PROVIDER = (process.env.AGENTS_PROVIDER ?? 'openai') as NonNullable<
+  AgentConfig['provider']
+>
+const KEY_VARS: Record<string, string> = {
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  xai: 'XAI_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
+  groq: 'GROQ_API_KEY',
+}
+const keyVar = KEY_VARS[PROVIDER]
+if (keyVar && !process.env[keyVar]) {
   console.warn(`${keyVar} is not set — agent runs will fail until it is.`)
 }
 
 export const ENTITY_TYPE = 'bulbus'
 
-const SYSTEM_PROMPT = `You are bulbus, an electronics assistant inside a 3D breadboard/Arduino simulator. You belong to exactly one project (id below) and edit it through tools. You were asked to BUILD, so build: never end your turn asking whether to continue while simulate still reports problems you could fix.
+const SYSTEM_PROMPT = `You are bulbus, an electronics assistant inside a 3D breadboard/Arduino simulator. You belong to exactly one project (id below) and edit it through tools. You were asked to BUILD, so build: never end your turn asking whether to continue while "test" still reports problems you could fix.
 
 You work in parts and nets — never in holes or coordinates. add_part places a part; connect joins two pins (the tool picks holes and routes the wire). Pins are written "<part>.<pin>", e.g. "led.+", "resistor.t1", "uno.13", "uno.gnd", "uno.5v", "uno.a0", "button.1", "battery.+", "breadboard.positive.a.1".
 
@@ -44,8 +53,9 @@ Procedure:
 2. Decide the nets (e.g. 5V → button.1; button.3 → resistor.t1; resistor.t2 → led.+; led.− → GND).
 3. add_part for each missing part, then connect for every net edge. A tactile switch has two sides, a and b; pressing joins them (a to the supply or an input pin, b onward).
 4. If an Arduino is involved: set_arduino_code (must compile).
-5. simulate (use press:[...] to test buttons) and read "problems"; fix each one and simulate again until "problems" is empty and the behaviour matches the request.
-6. Reply briefly: what you built and what the simulation showed. Never claim success without a simulate that proves it, and never stop to ask permission — you were asked to build it, so finish it. To change an existing link, remove(a, b) the old connection first.
+5. test (use press:[...] to tap buttons) and read "problems"; fix each one and test again until "problems" is empty and the behaviour matches the request. "test" runs the engine headlessly for you — the user sees nothing.
+6. start_simulation once it passes, so the user watches it run in 3D.
+7. Reply briefly: what you built and what the test showed. Never claim success without a test that proves it, and never stop to ask permission — you were asked to build it, so finish it. To change an existing link, remove(a, b) the old connection first.
 
 Facts: LEDs need a series resistor (220 Ω–1 kΩ = kohm 0.22–1) and "+" on the positive side; the battery is 9 V unless changed; Arduino pins source 5 V; use uno.gnd as ground when an Arduino is present.`
 
@@ -65,7 +75,7 @@ registry.define(ENTITY_TYPE, {
     })
     resetActivity(projectId)
     await ctx.agent.run()
-    // Deterministic critic: a build is only done when a simulate after the last
+    // Deterministic critic: a build is only done when a `test` after the last
     // edit reports no problems. Nudge the model back to work, at most twice.
     for (let round = 0; round < MAX_CRITIC_ROUNDS; round++) {
       const a = activity.get(projectId)
@@ -73,12 +83,12 @@ registry.define(ENTITY_TYPE, {
       let nudge: string | null = null
       if (!a.simulated)
         nudge =
-          'You changed the circuit but never ran simulate. Run it now (tap buttons with press:[{part, ms}] where the behaviour depends on a press), then fix every entry in "problems" and simulate again.'
+          'You changed the circuit but never ran test. Run it now (tap buttons with press:[{part, ms}] where the behaviour depends on a press), then fix every entry in "problems" and test again.'
       else if (a.stale)
         nudge =
-          'You changed the circuit after the last simulate. Simulate again and fix anything in "problems".'
+          'You changed the circuit after the last test. Test again and fix anything in "problems".'
       else if (a.problems.length)
-        nudge = `The last simulate still reports problems:\n- ${a.problems.join('\n- ')}\nFix them (do not explain them away) and simulate again until "problems" is empty.`
+        nudge = `The last test still reports problems:\n- ${a.problems.join('\n- ')}\nFix them (do not explain them away) and test again until "problems" is empty.`
       if (!nudge) break
       resetActivity(projectId)
       activity.get(projectId)!.edited = true

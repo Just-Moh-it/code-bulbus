@@ -89,10 +89,19 @@ async function saveCircuit(project: ProjectJSON) {
   a.edited = true
   a.stale = true
   await convex.mutation(api.circuit.apply, { projectId: project.id, ...ops })
+  // a running simulation is a snapshot of the old circuit: drop the user out of it
+  if ((project as { simulating?: boolean }).simulating)
+    await convex.mutation(api.projects.setSimulating, {
+      id: project.id,
+      simulating: false,
+    })
   baselines.set(project, structuredClone(project.circuit))
 }
 
 const short = (id: string) => id.slice(0, 8)
+
+/** Hard cap on one `test` run so a pathological circuit can never wedge the agent. */
+const TEST_BUDGET_MS = 25_000
 
 /**
  * What happened to a project during the current wake, so the server can run a
@@ -666,11 +675,11 @@ export function bulbusTools(projectId: string): AgentTool[] {
     },
   })
 
-  const simulate = tool(projectId, {
-    name: 'simulate',
-    label: 'Simulate',
+  const test = tool(projectId, {
+    name: 'test',
+    label: 'Test',
     description:
-      'Run the real engine (same as the Simulate button) for N windows of 50 ms (default 10; use 40+ for sketches with delays or LCD init, 200 = 10 s). Buttons can be held or tapped for N ms; LEDs report an on/off timeline. Reports per part (LED mA — lit ≈ >2 mA, resistor W, LCD text, TMP36/pot volts, Arduino serial) plus `problems`: floating pins, LEDs that stay dark, rating errors, SPICE errors. Fix every problem before reporting back.',
+      'Headless check: run the real engine yourself for N windows of 50 ms (default 10; use 40+ for sketches with delays or LCD init, 200 = 10 s). Buttons can be held or tapped for N ms; LEDs report an on/off timeline. Reports per part (LED mA — lit ≈ >2 mA, resistor W, LCD text, TMP36/pot volts, Arduino serial) plus `problems`: floating pins, LEDs that stay dark, rating errors, SPICE errors. Fix every problem before reporting back.',
     parameters: Type.Object({
       windows: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
       press: Type.Optional(
@@ -697,6 +706,9 @@ export function bulbusTools(projectId: string): AgentTool[] {
         onError: (m) => errors.push(m),
         onWarning: (m) => warnings.push(m),
       })
+      // headless: run the MCU inline and skip real-time pacing
+      circuit.syncMcu = true
+      circuit.paced = false
       const presses = press.map((x) =>
         typeof x === 'string'
           ? { id: resolvePart(project.circuit, x).id, ms: Infinity }
@@ -715,7 +727,20 @@ export function bulbusTools(projectId: string): AgentTool[] {
       const peakMilliamps = new Map<string, number>()
       const peakPin13 = new Map<string, number>()
       let n = 0
+      let failed = 0
       await new Promise<void>((resolve) => {
+        // A circuit that fails every SPICE window would otherwise loop forever:
+        // count failures as windows, and cap the whole run by wall clock.
+        const done = () => {
+          clearTimeout(watchdog)
+          circuit.stop()
+          resolve()
+        }
+        const watchdog = setTimeout(done, TEST_BUDGET_MS)
+        circuit.events.onWindowFailed = () => {
+          failed += 1
+          if (++n >= windows) done()
+        }
         circuit.events.onWindow = (c) => {
           const now = c.data.latestTime
           for (const p of c.parts) {
@@ -736,12 +761,9 @@ export function bulbusTools(projectId: string): AgentTool[] {
               peakPin13.set(p.id, Math.max(peakPin13.get(p.id) ?? 0, v))
             }
           }
-          if (++n >= windows) {
-            c.stop()
-            resolve()
-          }
+          if (++n >= windows) done()
         }
-        void circuit.start().then(resolve)
+        void circuit.start().then(done)
       })
       const t = circuit.data.latestTime
       const problems: string[] = []
@@ -842,6 +864,12 @@ export function bulbusTools(projectId: string): AgentTool[] {
           problems.push(`${p.type} ${short(p.id)}: ${e.message}`)
       for (const f of describeCircuit(project.circuit).floating)
         problems.push(`${f} is connected to nothing`)
+      if (failed)
+        problems.push(
+          failed >= n
+            ? `every simulation window failed (${failed}/${n}) — the netlist does not solve. Usually a node with no DC path to ground (a capacitor or coil island), a part left floating, or two supplies shorted together. Fix the wiring and test again.`
+            : `${failed} of ${n} simulation windows failed to solve — the circuit is marginal; check for floating nodes and missing ground returns.`,
+        )
       problems.push(...errors.map((e) => `spice: ${e}`))
       const a = act(projectId)
       a.simulated = true
@@ -857,6 +885,43 @@ export function bulbusTools(projectId: string): AgentTool[] {
     },
   })
 
+  /**
+   * The user-facing simulation: flips the project's shared `simulating` flag,
+   * which every open editor follows (identical to pressing Simulate/Stop).
+   * `test` is the agent's own headless check; this is what the user watches.
+   */
+  const startSimulation = tool(projectId, {
+    name: 'start_simulation',
+    label: 'Start simulation',
+    description:
+      "Press Simulate in the user's editor so they can watch the circuit run in 3D. Use it once the build passes `test` — it does not return results; call `test` when you need numbers.",
+    parameters: Type.Object({}),
+    execute: async (_params, id) => {
+      const project = await loadProject(id)
+      await convex.mutation(api.projects.setSimulating, {
+        id: project.id,
+        simulating: true,
+      })
+      return { simulating: true }
+    },
+  })
+
+  const stopSimulation = tool(projectId, {
+    name: 'stop_simulation',
+    label: 'Stop simulation',
+    description:
+      "Stop the simulation running in the user's editor (back to the build view). Editing tools do this for you when the circuit changes.",
+    parameters: Type.Object({}),
+    execute: async (_params, id) => {
+      const project = await loadProject(id)
+      await convex.mutation(api.projects.setSimulating, {
+        id: project.id,
+        simulating: false,
+      })
+      return { simulating: false }
+    },
+  })
+
   return [
     getProject,
     addPart,
@@ -864,6 +929,8 @@ export function bulbusTools(projectId: string): AgentTool[] {
     setProperty,
     remove,
     setArduinoCode,
-    simulate,
+    test,
+    startSimulation,
+    stopSimulation,
   ]
 }
