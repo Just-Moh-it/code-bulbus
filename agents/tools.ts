@@ -408,7 +408,12 @@ export const connect = tool({
     c.parts.push(...plan.ends)
     c.wires.push(plan.wire)
     await saveCircuit(project)
-    return { wired: `${plan.from} ↔ ${plan.to}`, color: plan.wire.color }
+    // everything now on this net — so an unintended passenger (an old link) is visible immediately
+    const { nets: after } = describeCircuit(c)
+    const key = (r: { part: PartJSON; terminal: string }) =>
+      `${r.part.type}:${short(r.part.id)}.${r.part.type === 'tactile-switch' ? switchSide(r.terminal) : r.terminal}`
+    const net = after.find((n) => n.includes(key(ra))) ?? []
+    return { wired: `${plan.from} ↔ ${plan.to}`, color: plan.wire.color, net }
   },
 })
 
@@ -554,6 +559,9 @@ export const simulate = tool({
     for (const p of circuit.parts)
       if (p instanceof TactileSwitch && pressed.includes(p.id))
         p.setPressed(true)
+    const unpressed = circuit.parts
+      .filter((p) => p instanceof TactileSwitch && !pressed.includes(p.id))
+      .map((p) => short(p.id))
     // sample every window so blinking outputs are judged by their peak, not by the last instant
     const peakMilliamps = new Map<string, number>()
     const peakPin13 = new Map<string, number>()
@@ -588,7 +596,10 @@ export const simulate = tool({
           const peak = +(peakMilliamps.get(p.id) ?? 0).toFixed(2)
           if (peak < 1)
             problems.push(
-              `led ${id} never lit (peak ${peak} mA): no current path — check + → resistor → supply, − → ground, and that the driving pin goes HIGH`,
+              `led ${id} never lit (peak ${peak} mA): no current path — check + → resistor → supply, − → ground, and that the driving pin goes HIGH` +
+                (unpressed.length
+                  ? `; buttons ${unpressed.join(', ')} were NOT pressed — simulate again with press:[...] if the LED sits behind one`
+                  : ''),
             )
           return { id, type: p.type, currentMilliamps: mA, peakMilliamps: peak }
         }
