@@ -55,10 +55,10 @@ registry.define(ENTITY_TYPE, {
       (ctx.args as { projectId?: string }).projectId ?? '',
     )
     ctx.useAgent({
-      systemPrompt: `${SYSTEM_PROMPT}\n\nThe user is working on project id: ${projectId || '(unknown — ask or use list_projects)'}.`,
+      systemPrompt: `${SYSTEM_PROMPT}\n\nProject id: ${projectId}. Pins are written <part>.<pin> or <type>:<id>.<pin> exactly as get_project prints them.`,
       model: MODEL,
       provider: PROVIDER,
-      tools: [...ctx.electricTools, ...bulbusTools],
+      tools: [...ctx.electricTools, ...bulbusTools(projectId)],
     })
     await ctx.agent.run()
   },
