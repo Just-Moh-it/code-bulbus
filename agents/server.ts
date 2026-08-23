@@ -24,7 +24,6 @@ const ELECTRIC_AGENTS_URL =
 const PORT = Number(process.env.AGENTS_APP_PORT ?? 4440)
 const SERVE_URL = process.env.AGENTS_SERVE_URL ?? `http://localhost:${PORT}`
 const MODEL = process.env.AGENTS_MODEL ?? 'gpt-5.1'
-/** pi-ai provider id; models are looked up within it. */
 /** pi-ai provider id (openai | anthropic | xai | openrouter | …); the model id must belong to it. */
 const PROVIDER = (process.env.AGENTS_PROVIDER ?? 'openai')
 const KEY_VARS: Record<string, string> = {
