@@ -132,11 +132,17 @@ function resolvePart(circuit: CircuitJSON, ref: string): PartJSON {
   )
 }
 
+/** A tactile switch has two contacts, each with two pins (1=2, 3=4). The agent only ever sees sides a and b. */
+const SWITCH_SIDES: Record<string, string> = { a: '1', b: '3' }
+const switchSide = (pin: string) => (pin === '1' || pin === '2' ? 'a' : 'b')
+
 /** Resolve a terminal name on a part, tolerating "13" for "~13", "gnd" for "gnd.1", case. */
 function resolveTerminal(part: PartJSON, name: string): string {
   const defsOf = terminalDefs(part)
   const names = defsOf.map((d) => d.name)
-  const key = name.trim()
+  let key = name.trim()
+  if (part.type === 'tactile-switch')
+    key = SWITCH_SIDES[key.toLowerCase()] ?? key
   const exact =
     names.find((n) => n === key) ??
     names.find((n) => n.toLowerCase() === key.toLowerCase())
@@ -247,14 +253,13 @@ function describeCircuit(circuit: CircuitJSON) {
   const label = (m: { partId: string; type: string; terminal: string }) =>
     m.type === 'breadboard'
       ? `breadboard.${m.terminal}`
-      : `${m.type}:${short(m.partId)}.${m.terminal}`
+      : `${m.type}:${short(m.partId)}.${m.type === 'tactile-switch' ? switchSide(m.terminal) : m.terminal}`
+  const labels = (n: NetMember[]) => [...new Set(n.map(label))]
   const pins = (n: NetMember[]) => n.filter((m) => m.type !== 'breadboard')
   // unused pins of a microcontroller are normal, not a problem
   const HOSTS = new Set(['arduino-uno', 'raspberry-pi'])
   const all = nets(circuit)
-  const connected = all
-    .filter((n) => pins(n).length > 1)
-    .map((n) => n.map(label))
+  const connected = all.filter((n) => pins(n).length > 1).map(labels)
   // a pin alone on its net (an unused strip or rail does not count as a connection)
   const floating = all
     .filter((n) => pins(n).length === 1 && !HOSTS.has(pins(n)[0].type))
@@ -325,7 +330,7 @@ export const addPart = tool({
   name: 'add_part',
   label: 'Add part',
   description:
-    'Add a part; it is placed automatically (on the breadboard, or on the table for arduino-uno/battery/motor). Returns its id and pin names — then use connect() to wire it. Types: arduino-uno, breadboard, battery, resistor (kohm), led (color), tactile-switch (pins 1-2 are one side, 3-4 the other; pressing joins the sides), capacitor, npn-transistor, pnp-transistor, motor, timer (555), 8-pin-chip, lcd1602-i2c (i2cAddress 0x27), lcd1602, potentiometer (pins 1, wiper, 3), tmp36 (vs, vout, gnd).',
+    'Add a part; it is placed automatically (on the breadboard, or on the table for arduino-uno/battery/motor). Returns its id and pin names — then use connect() to wire it. Types: arduino-uno, breadboard, battery, resistor (kohm), led (color), tactile-switch (sides a and b; pressing joins them), capacitor, npn-transistor, pnp-transistor, motor, timer (555), 8-pin-chip, lcd1602-i2c (i2cAddress 0x27), lcd1602, potentiometer (pins 1, wiper, 3), tmp36 (vs, vout, gnd).',
   parameters: Type.Object({
     projectId: ProjectId,
     type: Type.String(),
@@ -549,9 +554,23 @@ export const simulate = tool({
     for (const p of circuit.parts)
       if (p instanceof TactileSwitch && pressed.includes(p.id))
         p.setPressed(true)
+    // sample every window so blinking outputs are judged by their peak, not by the last instant
+    const peakMilliamps = new Map<string, number>()
+    const peakPin13 = new Map<string, number>()
     let n = 0
     await new Promise<void>((resolve) => {
       circuit.events.onWindow = (c) => {
+        const now = c.data.latestTime
+        for (const p of c.parts) {
+          if (p instanceof Led) {
+            const mA = Math.abs(c.data.getAmperage(p.deviceId, now) * 1e3)
+            peakMilliamps.set(p.id, Math.max(peakMilliamps.get(p.id) ?? 0, mA))
+          }
+          if (p instanceof ArduinoUno) {
+            const v = p.getVoltageAcross('~13', 'gnd.1', now)
+            peakPin13.set(p.id, Math.max(peakPin13.get(p.id) ?? 0, v))
+          }
+        }
         if (++n >= windows) {
           c.stop()
           resolve()
@@ -566,11 +585,12 @@ export const simulate = tool({
         const id = short(p.id)
         if (p instanceof Led) {
           const mA = +(circuit.data.getAmperage(p.deviceId, t) * 1e3).toFixed(2)
-          if (Math.abs(mA) < 1)
+          const peak = +(peakMilliamps.get(p.id) ?? 0).toFixed(2)
+          if (peak < 1)
             problems.push(
-              `led ${id} is dark (${mA} mA): no current path — check it is wired + → resistor → supply and − → ground, and the driving pin is HIGH`,
+              `led ${id} never lit (peak ${peak} mA): no current path — check + → resistor → supply, − → ground, and that the driving pin goes HIGH`,
             )
-          return { id, type: p.type, currentMilliamps: mA }
+          return { id, type: p.type, currentMilliamps: mA, peakMilliamps: peak }
         }
         if (p instanceof Battery)
           return {
@@ -604,6 +624,7 @@ export const simulate = tool({
             type: p.type,
             serial: p.logs.slice(-2000),
             pin13Volts: +p.getVoltageAcross('~13', 'gnd.1', t).toFixed(2),
+            pin13PeakVolts: +(peakPin13.get(p.id) ?? 0).toFixed(2),
           }
         }
         if (p instanceof Lcd1602 || p instanceof Lcd1602I2c) {
