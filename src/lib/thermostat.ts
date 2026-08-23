@@ -187,7 +187,10 @@ export function thermostatProject(
   link(unoEnd('5v'), bbEnd('positive.a.1'), 'Crimson')
   link(unoEnd('gnd.1'), bbEnd('negative.a.1'), 'Black')
 
-  // LCD pins in row J, columns 20..35 (VSS VDD V0 RS RW E D0-D7 A K)
+  // LCD pins in row A, columns 20..35: the module body extends away from its
+  // pin row, so with pins in A it overhangs the front edge and leaves rows B–J
+  // (and the top rails) at those columns free for wires. Pins in row J would
+  // put the whole body over the strips and bury every wire under the display.
   const lcdPins = [
     'VSS',
     'VDD',
@@ -210,69 +213,69 @@ export function thermostatProject(
     onBreadboard(
       'lcd1602',
       0,
-      Object.fromEntries(lcdPins.map((p, i) => [p, `J.${20 + i}`])),
+      Object.fromEntries(lcdPins.map((p, i) => [p, `A.${20 + i}`])),
     ),
   )
-  link(bbEnd('F.20'), bbEnd('negative.a.5'), 'Black') // VSS
-  link(bbEnd('F.21'), bbEnd('positive.a.5'), 'Crimson') // VDD
-  link(bbEnd('F.22'), bbEnd('negative.a.6'), 'Black') // V0 contrast
-  link(bbEnd('F.23'), unoEnd('12'), 'Gold') // RS
-  link(bbEnd('F.24'), bbEnd('negative.a.7'), 'Black') // RW
-  link(bbEnd('F.25'), unoEnd('~11'), 'Gold') // E
-  link(bbEnd('F.30'), unoEnd('~5'), 'MediumOrchid') // D4
-  link(bbEnd('F.31'), unoEnd('4'), 'MediumOrchid') // D5
-  link(bbEnd('F.32'), unoEnd('~3'), 'MediumOrchid') // D6
-  link(bbEnd('F.33'), unoEnd('2'), 'MediumOrchid') // D7
-  link(bbEnd('F.34'), bbEnd('positive.a.10'), 'Crimson') // A backlight
-  link(bbEnd('F.35'), bbEnd('negative.a.10'), 'Black') // K
+  link(bbEnd('C.20'), bbEnd('negative.a.5'), 'Black') // VSS
+  link(bbEnd('C.21'), bbEnd('positive.a.5'), 'Crimson') // VDD
+  link(bbEnd('C.22'), bbEnd('negative.a.6'), 'Black') // V0 contrast
+  link(bbEnd('C.23'), unoEnd('12'), 'Gold') // RS
+  link(bbEnd('C.24'), bbEnd('negative.a.7'), 'Black') // RW
+  link(bbEnd('C.25'), unoEnd('~11'), 'Gold') // E
+  link(bbEnd('C.30'), unoEnd('~5'), 'MediumOrchid') // D4
+  link(bbEnd('C.31'), unoEnd('4'), 'MediumOrchid') // D5
+  link(bbEnd('C.32'), unoEnd('~3'), 'MediumOrchid') // D6
+  link(bbEnd('C.33'), unoEnd('2'), 'MediumOrchid') // D7
+  link(bbEnd('C.34'), bbEnd('positive.a.10'), 'Crimson') // A backlight
+  link(bbEnd('C.35'), bbEnd('negative.a.10'), 'Black') // K
 
-  // setpoint pot: row E cols 40-42
+  // setpoint pot: row E cols 46-48 (clear of the display, which spans ~columns 12–43)
   parts.push(
     onBreadboard(
       'potentiometer',
       0,
-      { '1': 'E.40', wiper: 'E.41', '3': 'E.42' },
+      { '1': 'E.46', wiper: 'E.47', '3': 'E.48' },
       { kohm: 10, wiper: 0.5 },
     ),
   )
-  link(bbEnd('A.40'), bbEnd('positive.a.20'), 'Crimson')
-  link(bbEnd('A.41'), unoEnd('a1'), 'DeepSkyBlue')
-  link(bbEnd('A.42'), bbEnd('negative.a.20'), 'Black')
+  link(bbEnd('A.46'), bbEnd('positive.a.30'), 'Crimson')
+  link(bbEnd('A.47'), unoEnd('a1'), 'DeepSkyBlue')
+  link(bbEnd('A.48'), bbEnd('negative.a.30'), 'Black')
 
-  // TMP36: row E cols 45-47 (+Vs, Vout, GND)
+  // TMP36: row E cols 52-54 (+Vs, Vout, GND)
   parts.push(
     onBreadboard(
       'tmp36',
       0,
-      { vs: 'E.45', vout: 'E.46', gnd: 'E.47' },
+      { vs: 'E.52', vout: 'E.53', gnd: 'E.54' },
       { temperature: 22 },
     ),
   )
-  link(bbEnd('A.45'), bbEnd('positive.a.25'), 'Crimson')
-  link(bbEnd('A.46'), unoEnd('a0'), 'MediumSeaGreen')
-  link(bbEnd('A.47'), bbEnd('negative.a.25'), 'Black')
+  link(bbEnd('A.52'), bbEnd('positive.a.35'), 'Crimson')
+  link(bbEnd('A.53'), unoEnd('a0'), 'MediumSeaGreen')
+  link(bbEnd('A.54'), bbEnd('negative.a.35'), 'Black')
 
-  // heat LED (red): pin 8 → 220Ω → LED → GND
+  // heat LED (red): pin 8 → 220Ω → LED → GND, on the F–J bank so the A–E bank stays free
   parts.push(
     onBreadboard(
       'resistor',
       Math.PI / 2,
-      { t1: 'E.54', t2: 'E.50' },
+      { t1: 'J.54', t2: 'J.50' },
       { kohm: 0.22 },
     ),
   )
   parts.push(
-    onBreadboard('led', 0, { '+': 'D.54', '-': 'D.55' }, { color: 'Crimson' }),
+    onBreadboard('led', 0, { '+': 'I.54', '-': 'I.55' }, { color: 'Crimson' }),
   )
-  link(unoEnd('8'), bbEnd('A.50'), 'DarkOrange')
-  link(bbEnd('A.55'), bbEnd('negative.a.30'), 'Black')
+  link(unoEnd('8'), bbEnd('F.50'), 'DarkOrange')
+  link(bbEnd('F.55'), bbEnd('negative.a.40'), 'Black')
 
   // cool LED (blue): pin 9 → 220Ω → LED → GND
   parts.push(
     onBreadboard(
       'resistor',
       Math.PI / 2,
-      { t1: 'E.62', t2: 'E.58' },
+      { t1: 'J.62', t2: 'J.58' },
       { kohm: 0.22 },
     ),
   )
@@ -280,12 +283,12 @@ export function thermostatProject(
     onBreadboard(
       'led',
       0,
-      { '+': 'D.62', '-': 'D.63' },
+      { '+': 'I.62', '-': 'I.63' },
       { color: 'DeepSkyBlue' },
     ),
   )
-  link(unoEnd('~9'), bbEnd('A.58'), 'DarkOrange')
-  link(bbEnd('A.63'), bbEnd('negative.a.35'), 'Black')
+  link(unoEnd('~9'), bbEnd('F.58'), 'DarkOrange')
+  link(bbEnd('F.63'), bbEnd('negative.a.45'), 'Black')
 
   return {
     id: projectId,
