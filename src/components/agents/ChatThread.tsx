@@ -265,6 +265,15 @@ export function ChatThread({
     // chat.inbox changes whenever the stream does; manifests ride the same stream
   }, [db, chat.inbox, chat.sections.length])
 
+  const stop = () => {
+    if (!entityUrl) return
+    void fetch('/api/agents/stop', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ entityUrl }),
+    })
+  }
+
   const send = async ({ text, attachments }: ComposerSubmit) => {
     setSending(true)
     try {
@@ -437,7 +446,7 @@ export function ChatThread({
         )}
       </div>
       <div className="absolute right-0 bottom-0 left-0 px-2 pb-3">
-        <ChatComposer isBusy={isBusy} onSubmit={send} autoFocus />
+        <ChatComposer isBusy={isBusy} onSubmit={send} onStop={stop} autoFocus />
       </div>
     </div>
   )

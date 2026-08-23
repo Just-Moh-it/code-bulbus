@@ -98,6 +98,19 @@ export const create = mutation({
   },
 })
 
+/** Start or stop the project's simulation; every open editor follows this flag. */
+export const setSimulating = mutation({
+  args: { id: v.string(), simulating: v.boolean() },
+  handler: async (ctx, { id, simulating }) => {
+    const existing = await ctx.db
+      .query('projects')
+      .withIndex('by_public_id', (q) => q.eq('id', id))
+      .unique()
+    if (!existing) throw new Error(`Project ${id} not found`)
+    await ctx.db.patch(existing._id, { simulating })
+  },
+})
+
 /** Project metadata (name, camera). Circuit edits go through `circuit.apply`. */
 export const update = mutation({
   args: {

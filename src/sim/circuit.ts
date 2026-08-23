@@ -77,6 +77,12 @@ export interface CircuitEvents {
   onWarning?: (message: string) => void
   /** Called after each window's results are appended. */
   onWindow?: (circuit: Circuit) => void
+  /**
+   * Called instead of `onWindow` when a window's SPICE run failed. Consumers
+   * that count windows MUST handle this too: a circuit that fails every window
+   * would otherwise never advance while `start()` keeps looping.
+   */
+  onWindowFailed?: (circuit: Circuit) => void
 }
 
 export const circuitDebug = { enabled: false }
@@ -92,6 +98,11 @@ export class Circuit {
   simDuration = 50
   /** Run the MCU synchronously (headless scripts/tests); the browser runs it async. */
   syncMcu = false
+  /**
+   * Sleep between windows so playback never outruns real time. Headless runs
+   * (scripts, agent `test`) turn this off and go as fast as SPICE allows.
+   */
+  paced = true
   readonly data = new DataBus()
   readonly errors = new Set<string>()
   readonly warnings = new Set<string>()
@@ -226,7 +237,9 @@ export class Circuit {
    */
   async simulate() {
     this.beforeSimulate()
-    const pace = sleep(fastMachine() ? this.simDuration : 2 * this.simDuration)
+    const pace = this.paced
+      ? sleep(fastMachine() ? this.simDuration : 2 * this.simDuration)
+      : Promise.resolve()
     const t0 = performance.now()
     const netlist = this.toNetlist(this.simDuration)
     if (circuitDebug.enabled) console.log(netlist)
@@ -273,6 +286,7 @@ export class Circuit {
         console.log(netlist)
       }
       if (!failure.errors && !failure.warnings) throw e
+      if (this.running) this.events.onWindowFailed?.(this)
     }
   }
 
@@ -282,7 +296,7 @@ export class Circuit {
     this.totalSimTime = 0
     this.running = true
     this.parts.forEach((p) => p.start())
-    await sleep(this.simDuration)
+    if (this.paced) await sleep(this.simDuration)
     while (this.running) {
       await this.simulate()
       if (this.running) this.clock.resume()

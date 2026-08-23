@@ -121,6 +121,8 @@ export class Simulator {
   /** Start/stop the engine and mirror its running flag observably. */
   start() {
     this.setRunning(true)
+    // debugging hook for headless probes (dev only)
+    if (import.meta.env.DEV) (globalThis as unknown as { __bulbusSim?: Simulator }).__bulbusSim = this
     void this.circuit.start().finally(() => this.setRunning(false))
   }
   stop() {

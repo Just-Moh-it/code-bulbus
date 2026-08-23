@@ -92,16 +92,26 @@ function ProjectPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [project])
 
-  const startSimulation = () => {
+  // Simulation is shared project state, so the agent's start_simulation /
+  // stop_simulation drive this editor exactly like the buttons do.
+  const setSimulating = useMutation(api.projects.setSimulating)
+  const wantsSimulation = server?.project.simulating ?? false
+  useEffect(() => {
     if (!project) return
-    const sim = new Simulator(project.toJSON())
-    sim.start()
-    setSimulator(sim)
-  }
-  const stopSimulation = () => {
-    simulator?.stop()
-    setSimulator(null)
-  }
+    if (wantsSimulation && !simulator) {
+      const sim = new Simulator(project.toJSON())
+      sim.start()
+      setSimulator(sim)
+    } else if (!wantsSimulation && simulator) {
+      simulator.stop()
+      setSimulator(null)
+    }
+  }, [wantsSimulation, simulator, project])
+  useEffect(() => {
+    return () => simulator?.stop()
+  }, [simulator])
+  const startSimulation = () => void setSimulating({ id, simulating: true })
+  const stopSimulation = () => void setSimulating({ id, simulating: false })
   const del = async () => {
     await remove({ id })
     void navigate({ to: '/' })
@@ -153,7 +163,7 @@ function ProjectPage() {
           <AgentsPanel
             projectId={id}
             action={simulateButton}
-            collapsed={!!simulator}
+            compact={!!simulator}
           />
         </div>
       </div>

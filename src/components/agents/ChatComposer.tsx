@@ -1,4 +1,10 @@
-import { ArrowUpIcon, FileIcon, PaperclipIcon, XIcon } from 'lucide-react'
+import {
+  ArrowUpIcon,
+  CircleStopIcon,
+  FileIcon,
+  PaperclipIcon,
+  XIcon,
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Attachment,
@@ -73,6 +79,7 @@ export function ChatComposer({
   disabled = false,
   isBusy = false,
   onSubmit,
+  onStop,
   className,
   autoFocus = false,
 }: {
@@ -80,6 +87,8 @@ export function ChatComposer({
   disabled?: boolean
   isBusy?: boolean
   onSubmit: (payload: ComposerSubmit) => void | Promise<void>
+  /** Interrupt the run in progress; shown in place of Send while busy. */
+  onStop?: () => void
   className?: string
   autoFocus?: boolean
 }) {
@@ -250,24 +259,41 @@ export function ChatComposer({
             </TooltipTrigger>
             <TooltipContent>Attach</TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <InputGroupButton
-                type="submit"
-                variant="default"
-                aria-disabled={!canSend}
-                tabIndex={canSend ? 0 : -1}
-                className={cn(
-                  'ml-auto',
-                  !canSend && 'pointer-events-none opacity-50',
-                )}
-                aria-label="Send"
-              >
-                <ArrowUpIcon />
-              </InputGroupButton>
-            </TooltipTrigger>
-            <TooltipContent>Send</TooltipContent>
-          </Tooltip>
+          {isBusy && onStop ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InputGroupButton
+                  type="button"
+                  variant="outline"
+                  className="ml-auto"
+                  aria-label="Stop"
+                  onClick={onStop}
+                >
+                  <CircleStopIcon />
+                </InputGroupButton>
+              </TooltipTrigger>
+              <TooltipContent>Stop</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InputGroupButton
+                  type="submit"
+                  variant="default"
+                  aria-disabled={!canSend}
+                  tabIndex={canSend ? 0 : -1}
+                  className={cn(
+                    'ml-auto',
+                    !canSend && 'pointer-events-none opacity-50',
+                  )}
+                  aria-label="Send"
+                >
+                  <ArrowUpIcon />
+                </InputGroupButton>
+              </TooltipTrigger>
+              <TooltipContent>Send</TooltipContent>
+            </Tooltip>
+          )}
         </InputGroupAddon>
       </InputGroup>
     </form>

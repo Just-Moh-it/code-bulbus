@@ -90,6 +90,7 @@ export const get = query({
         featured: project.featured ?? false,
         created_at: project.created_at,
         camera: project.camera,
+        simulating: project.simulating ?? false,
       },
       circuit: legacy
         ? { parts: blob?.parts ?? [], wires: blob?.wires ?? [] }

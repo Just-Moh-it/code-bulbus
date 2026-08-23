@@ -20,6 +20,8 @@ export default defineSchema({
     circuit: v.optional(v.any()),
     preview: v.optional(v.id('_storage')),
     agentVersion: v.optional(v.number()),
+    /** Shared run state: the editor starts/stops its simulator from this, and agents can drive it. */
+    simulating: v.optional(v.boolean()),
   })
     .index('by_public_id', ['id'])
     .index('by_user', ['user_id'])

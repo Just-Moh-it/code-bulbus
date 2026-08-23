@@ -13,8 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as ApiCompileRouteImport } from './routes/api/compile'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
+import { Route as ApiAgentsAttachmentRouteImport } from './routes/api/agents/attachment'
+import { Route as ApiAgentsDeleteRouteImport } from './routes/api/agents/delete'
 import { Route as ApiAgentsSendRouteImport } from './routes/api/agents/send'
 import { Route as ApiAgentsSpawnRouteImport } from './routes/api/agents/spawn'
+import { Route as ApiAgentsStopRouteImport } from './routes/api/agents/stop'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -36,6 +39,16 @@ const ProjectsIdRoute = ProjectsIdRouteImport.update({
   path: '/projects/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentsAttachmentRoute = ApiAgentsAttachmentRouteImport.update({
+  id: '/api/agents/attachment',
+  path: '/api/agents/attachment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentsDeleteRoute = ApiAgentsDeleteRouteImport.update({
+  id: '/api/agents/delete',
+  path: '/api/agents/delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAgentsSendRoute = ApiAgentsSendRouteImport.update({
   id: '/api/agents/send',
   path: '/api/agents/send',
@@ -46,22 +59,33 @@ const ApiAgentsSpawnRoute = ApiAgentsSpawnRouteImport.update({
   path: '/api/agents/spawn',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentsStopRoute = ApiAgentsStopRouteImport.update({
+  id: '/api/agents/stop',
+  path: '/api/agents/stop',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
   '/api/compile': typeof ApiCompileRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/api/agents/attachment': typeof ApiAgentsAttachmentRoute
+  '/api/agents/delete': typeof ApiAgentsDeleteRoute
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
+  '/api/agents/stop': typeof ApiAgentsStopRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
   '/api/compile': typeof ApiCompileRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/api/agents/attachment': typeof ApiAgentsAttachmentRoute
+  '/api/agents/delete': typeof ApiAgentsDeleteRoute
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
+  '/api/agents/stop': typeof ApiAgentsStopRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,8 +93,11 @@ export interface FileRoutesById {
   '/explore': typeof ExploreRoute
   '/api/compile': typeof ApiCompileRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/api/agents/attachment': typeof ApiAgentsAttachmentRoute
+  '/api/agents/delete': typeof ApiAgentsDeleteRoute
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
+  '/api/agents/stop': typeof ApiAgentsStopRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -79,24 +106,33 @@ export interface FileRouteTypes {
     | '/explore'
     | '/api/compile'
     | '/projects/$id'
+    | '/api/agents/attachment'
+    | '/api/agents/delete'
     | '/api/agents/send'
     | '/api/agents/spawn'
+    | '/api/agents/stop'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/explore'
     | '/api/compile'
     | '/projects/$id'
+    | '/api/agents/attachment'
+    | '/api/agents/delete'
     | '/api/agents/send'
     | '/api/agents/spawn'
+    | '/api/agents/stop'
   id:
     | '__root__'
     | '/'
     | '/explore'
     | '/api/compile'
     | '/projects/$id'
+    | '/api/agents/attachment'
+    | '/api/agents/delete'
     | '/api/agents/send'
     | '/api/agents/spawn'
+    | '/api/agents/stop'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -104,8 +140,11 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   ApiCompileRoute: typeof ApiCompileRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
+  ApiAgentsAttachmentRoute: typeof ApiAgentsAttachmentRoute
+  ApiAgentsDeleteRoute: typeof ApiAgentsDeleteRoute
   ApiAgentsSendRoute: typeof ApiAgentsSendRoute
   ApiAgentsSpawnRoute: typeof ApiAgentsSpawnRoute
+  ApiAgentsStopRoute: typeof ApiAgentsStopRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -138,6 +177,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agents/attachment': {
+      id: '/api/agents/attachment'
+      path: '/api/agents/attachment'
+      fullPath: '/api/agents/attachment'
+      preLoaderRoute: typeof ApiAgentsAttachmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agents/delete': {
+      id: '/api/agents/delete'
+      path: '/api/agents/delete'
+      fullPath: '/api/agents/delete'
+      preLoaderRoute: typeof ApiAgentsDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/agents/send': {
       id: '/api/agents/send'
       path: '/api/agents/send'
@@ -152,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsSpawnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agents/stop': {
+      id: '/api/agents/stop'
+      path: '/api/agents/stop'
+      fullPath: '/api/agents/stop'
+      preLoaderRoute: typeof ApiAgentsStopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -160,8 +220,11 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   ApiCompileRoute: ApiCompileRoute,
   ProjectsIdRoute: ProjectsIdRoute,
+  ApiAgentsAttachmentRoute: ApiAgentsAttachmentRoute,
+  ApiAgentsDeleteRoute: ApiAgentsDeleteRoute,
   ApiAgentsSendRoute: ApiAgentsSendRoute,
   ApiAgentsSpawnRoute: ApiAgentsSpawnRoute,
+  ApiAgentsStopRoute: ApiAgentsStopRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
