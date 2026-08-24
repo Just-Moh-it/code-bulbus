@@ -52,12 +52,37 @@ export type WireRow = {
   data: WireJSON
 }
 
+/**
+ * Automated browsers (navigator.webdriver) report document.hidden === true
+ * forever, which makes the Electric client pause every stream and the app
+ * never load. Report always-visible there; real browsers keep the default
+ * pause-when-hidden behaviour.
+ */
+const forceVisible = () => {
+  try {
+    return (
+      (typeof navigator !== 'undefined' && navigator.webdriver) ||
+      (typeof localStorage !== 'undefined' &&
+        localStorage.getItem('bulbus:always-visible') === '1')
+    )
+  } catch {
+    return false
+  }
+}
+const runtimeVisibility = forceVisible()
+  ? {
+      getCurrentState: () => 'visible' as const,
+      subscribe: () => () => {},
+    }
+  : undefined
+
 const makeProjects = () =>
   createCollection(
     electricCollectionOptions<ProjectRow>({
       id: 'projects',
       shapeOptions: {
         url: SHAPE_URL,
+        runtimeVisibility,
         params: { table: 'projects' },
         parser,
       },
@@ -72,6 +97,7 @@ const makeParts = (projectId: string) =>
       id: `parts-${projectId}`,
       shapeOptions: {
         url: SHAPE_URL,
+        runtimeVisibility,
         params: {
           table: 'parts',
           where: 'project_id = $1',
@@ -89,6 +115,7 @@ const makeWires = (projectId: string) =>
       id: `wires-${projectId}`,
       shapeOptions: {
         url: SHAPE_URL,
+        runtimeVisibility,
         params: {
           table: 'wires',
           where: 'project_id = $1',
