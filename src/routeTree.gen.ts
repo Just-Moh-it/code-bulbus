@@ -20,6 +20,7 @@ import { Route as ApiAgentsDeleteRouteImport } from './routes/api/agents/delete'
 import { Route as ApiAgentsSendRouteImport } from './routes/api/agents/send'
 import { Route as ApiAgentsSpawnRouteImport } from './routes/api/agents/spawn'
 import { Route as ApiAgentsStopRouteImport } from './routes/api/agents/stop'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiDataTxRouteImport } from './routes/api/data/tx'
 import { Route as ApiDataProjectsIndexRouteImport } from './routes/api/data/projects/index'
 import { Route as ApiDataProjectsIdRouteImport } from './routes/api/data/projects/$id'
@@ -82,6 +83,11 @@ const ApiAgentsStopRoute = ApiAgentsStopRouteImport.update({
   path: '/api/agents/stop',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDataTxRoute = ApiDataTxRouteImport.update({
   id: '/api/data/tx',
   path: '/api/data/tx',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/tx': typeof ApiDataTxRoute
   '/api/data/projects/$id': typeof ApiDataProjectsIdRoute
   '/api/data/projects/duplicate': typeof ApiDataProjectsDuplicateRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/tx': typeof ApiDataTxRoute
   '/api/data/projects/$id': typeof ApiDataProjectsIdRoute
   '/api/data/projects/duplicate': typeof ApiDataProjectsDuplicateRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/tx': typeof ApiDataTxRoute
   '/api/data/projects/$id': typeof ApiDataProjectsIdRoute
   '/api/data/projects/duplicate': typeof ApiDataProjectsDuplicateRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/auth/$'
     | '/api/data/tx'
     | '/api/data/projects/$id'
     | '/api/data/projects/duplicate'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/auth/$'
     | '/api/data/tx'
     | '/api/data/projects/$id'
     | '/api/data/projects/duplicate'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/auth/$'
     | '/api/data/tx'
     | '/api/data/projects/$id'
     | '/api/data/projects/duplicate'
@@ -245,6 +257,7 @@ export interface RootRouteChildren {
   ApiAgentsSendRoute: typeof ApiAgentsSendRoute
   ApiAgentsSpawnRoute: typeof ApiAgentsSpawnRoute
   ApiAgentsStopRoute: typeof ApiAgentsStopRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDataTxRoute: typeof ApiDataTxRoute
   ApiDataProjectsIdRoute: typeof ApiDataProjectsIdRoute
   ApiDataProjectsDuplicateRoute: typeof ApiDataProjectsDuplicateRoute
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsStopRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/data/tx': {
       id: '/api/data/tx'
       path: '/api/data/tx'
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentsSendRoute: ApiAgentsSendRoute,
   ApiAgentsSpawnRoute: ApiAgentsSpawnRoute,
   ApiAgentsStopRoute: ApiAgentsStopRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDataTxRoute: ApiDataTxRoute,
   ApiDataProjectsIdRoute: ApiDataProjectsIdRoute,
   ApiDataProjectsDuplicateRoute: ApiDataProjectsDuplicateRoute,
