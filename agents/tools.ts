@@ -14,8 +14,11 @@
 import { Type } from '@sinclair/typebox'
 import type { Static, TSchema } from '@sinclair/typebox'
 import type { AgentTool } from '@electric-ax/agents-runtime'
-import { ConvexHttpClient } from 'convex/browser'
-import { api } from '../convex/_generated/api'
+import {
+  applyTx,
+  getProject as fetchProject,
+  toProjectJSON,
+} from '../server/db'
 import type {
   CircuitJSON,
   PartJSON,
@@ -51,10 +54,6 @@ import {
 } from './layout'
 import type { NetMember } from './layout'
 
-const CONVEX_URL = process.env.VITE_CONVEX_URL
-if (!CONVEX_URL) throw new Error('VITE_CONVEX_URL is not set (see .env.local)')
-const convex = new ConvexHttpClient(CONVEX_URL)
-
 // ----------------------------------------------------------------- helpers
 const text = (data: unknown) => ({
   content: [
@@ -70,12 +69,11 @@ const text = (data: unknown) => ({
 const baselines = new WeakMap<ProjectJSON, CircuitJSON>()
 
 async function loadProject(id: string): Promise<ProjectJSON> {
-  const snap = await convex.query(api.circuit.get, { projectId: id })
+  const snap = await fetchProject(id)
   if (!snap) throw new Error(`Project ${id} not found`)
-  const project: ProjectJSON = {
-    ...snap.project,
-    camera: snap.project.camera as ProjectJSON['camera'],
-    circuit: snap.circuit,
+  const project: ProjectJSON & { simulating?: boolean } = {
+    ...toProjectJSON(snap),
+    simulating: snap.simulating,
   }
   baselines.set(project, structuredClone(project.circuit))
   return project
@@ -88,13 +86,16 @@ async function saveCircuit(project: ProjectJSON) {
   const a = act(project.id)
   a.edited = true
   a.stale = true
-  await convex.mutation(api.circuit.apply, { projectId: project.id, ...ops })
-  // a running simulation is a snapshot of the old circuit: drop the user out of it
-  if ((project as { simulating?: boolean }).simulating)
-    await convex.mutation(api.projects.setSimulating, {
-      id: project.id,
-      simulating: false,
-    })
+  await applyTx({
+    projectId: project.id,
+    ...ops,
+    // open editors can tell an agent write from their own echo
+    agentVersion: Date.now(),
+    // a running simulation is a snapshot of the old circuit: drop the user out of it
+    ...((project as { simulating?: boolean }).simulating
+      ? { simulating: false }
+      : {}),
+  })
   baselines.set(project, structuredClone(project.circuit))
 }
 
@@ -898,10 +899,7 @@ export function bulbusTools(projectId: string): AgentTool[] {
     parameters: Type.Object({}),
     execute: async (_params, id) => {
       const project = await loadProject(id)
-      await convex.mutation(api.projects.setSimulating, {
-        id: project.id,
-        simulating: true,
-      })
+      await applyTx({ projectId: project.id, simulating: true })
       return { simulating: true }
     },
   })
@@ -914,10 +912,7 @@ export function bulbusTools(projectId: string): AgentTool[] {
     parameters: Type.Object({}),
     execute: async (_params, id) => {
       const project = await loadProject(id)
-      await convex.mutation(api.projects.setSimulating, {
-        id: project.id,
-        simulating: false,
-      })
+      await applyTx({ projectId: project.id, simulating: false })
       return { simulating: false }
     },
   })

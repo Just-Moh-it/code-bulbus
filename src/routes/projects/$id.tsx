@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useMutation, useQuery } from 'convex/react'
 import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
-import { api } from '../../../convex/_generated/api'
+import {
+  applyTx,
+  createProject,
+  duplicateProject,
+  removeProject,
+} from '#/lib/api'
+import { useProjectSnapshot } from '#/lib/collections'
 import { ArduinoUnoPart, EditorProject } from '#/editor/models'
 import { ProjectCanvas } from '#/editor/scene/ProjectCanvas'
 import { PartContextMenu } from '#/components/editor/ContextMenu'
@@ -33,10 +38,7 @@ const CANVAS_BG = '#F3F5F9'
 function ProjectPage() {
   const { id } = Route.useParams()
   const { template } = Route.useSearch()
-  const server = useQuery(api.circuit.get, { projectId: id })
-  const create = useMutation(api.projects.create)
-  const remove = useMutation(api.projects.remove)
-  const duplicate = useMutation(api.projects.duplicate)
+  const server = useProjectSnapshot(id)
   const navigate = useNavigate()
   const [simulator, setSimulator] = useState<Simulator | null>(null)
 
@@ -55,15 +57,16 @@ function ProjectPage() {
     if (!template) return
     const fresh =
       template === 'thermostat' ? thermostatProject(id) : defaultProject(id)
-    void create({
+    void createProject({
       id,
       name: fresh.name,
       user_id: null,
       parent_id: null,
+      camera: fresh.camera ?? null,
       parts: fresh.circuit.parts,
       wires: fresh.circuit.wires,
     })
-  }, [server, template, id, json, create])
+  }, [server, template, id, json])
   const project = useMemo(() => (json ? new EditorProject(json) : null), [json])
   useProjectSync(project, server)
   // dev aid: inspect the live model from the console
@@ -95,7 +98,6 @@ function ProjectPage() {
 
   // Simulation is shared project state, so the agent's start_simulation /
   // stop_simulation drive this editor exactly like the buttons do.
-  const setSimulating = useMutation(api.projects.setSimulating)
   const wantsSimulation = server?.project.simulating ?? false
   useEffect(() => {
     if (!project) return
@@ -111,10 +113,14 @@ function ProjectPage() {
   useEffect(() => {
     return () => simulator?.stop()
   }, [simulator])
-  const startSimulation = () => void setSimulating({ id, simulating: true })
-  const stopSimulation = () => void setSimulating({ id, simulating: false })
+  const setSimulating = (simulating: boolean) =>
+    void applyTx({ projectId: id, simulating }).catch((e: unknown) =>
+      console.error('setSimulating failed', e),
+    )
+  const startSimulation = () => setSimulating(true)
+  const stopSimulation = () => setSimulating(false)
   const del = async () => {
-    await remove({ id })
+    await removeProject(id)
     void navigate({ to: '/' })
   }
 
@@ -156,7 +162,7 @@ function ProjectPage() {
               onDelete={del}
               onDuplicate={async () => {
                 const newId = crypto.randomUUID()
-                await duplicate({ id, newId })
+                await duplicateProject({ id, newId })
                 await navigate({ to: '/projects/$id', params: { id: newId } })
               }}
             />

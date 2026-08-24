@@ -20,6 +20,12 @@ import { Route as ApiAgentsDeleteRouteImport } from './routes/api/agents/delete'
 import { Route as ApiAgentsSendRouteImport } from './routes/api/agents/send'
 import { Route as ApiAgentsSpawnRouteImport } from './routes/api/agents/spawn'
 import { Route as ApiAgentsStopRouteImport } from './routes/api/agents/stop'
+import { Route as ApiDataTxRouteImport } from './routes/api/data/tx'
+import { Route as ApiDataProjectsIndexRouteImport } from './routes/api/data/projects/index'
+import { Route as ApiDataProjectsIdRouteImport } from './routes/api/data/projects/$id'
+import { Route as ApiDataProjectsDuplicateRouteImport } from './routes/api/data/projects/duplicate'
+import { Route as ApiDataProjectsRemoveRouteImport } from './routes/api/data/projects/remove'
+import { Route as ApiDataProjectsSetPublicRouteImport } from './routes/api/data/projects/set-public'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +82,38 @@ const ApiAgentsStopRoute = ApiAgentsStopRouteImport.update({
   path: '/api/agents/stop',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDataTxRoute = ApiDataTxRouteImport.update({
+  id: '/api/data/tx',
+  path: '/api/data/tx',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDataProjectsIndexRoute = ApiDataProjectsIndexRouteImport.update({
+  id: '/api/data/projects/',
+  path: '/api/data/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDataProjectsIdRoute = ApiDataProjectsIdRouteImport.update({
+  id: '/api/data/projects/$id',
+  path: '/api/data/projects/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDataProjectsDuplicateRoute =
+  ApiDataProjectsDuplicateRouteImport.update({
+    id: '/api/data/projects/duplicate',
+    path: '/api/data/projects/duplicate',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDataProjectsRemoveRoute = ApiDataProjectsRemoveRouteImport.update({
+  id: '/api/data/projects/remove',
+  path: '/api/data/projects/remove',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDataProjectsSetPublicRoute =
+  ApiDataProjectsSetPublicRouteImport.update({
+    id: '/api/data/projects/set-public',
+    path: '/api/data/projects/set-public',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +127,12 @@ export interface FileRoutesByFullPath {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/data/tx': typeof ApiDataTxRoute
+  '/api/data/projects/$id': typeof ApiDataProjectsIdRoute
+  '/api/data/projects/duplicate': typeof ApiDataProjectsDuplicateRoute
+  '/api/data/projects/remove': typeof ApiDataProjectsRemoveRoute
+  '/api/data/projects/set-public': typeof ApiDataProjectsSetPublicRoute
+  '/api/data/projects/': typeof ApiDataProjectsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +146,12 @@ export interface FileRoutesByTo {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/data/tx': typeof ApiDataTxRoute
+  '/api/data/projects/$id': typeof ApiDataProjectsIdRoute
+  '/api/data/projects/duplicate': typeof ApiDataProjectsDuplicateRoute
+  '/api/data/projects/remove': typeof ApiDataProjectsRemoveRoute
+  '/api/data/projects/set-public': typeof ApiDataProjectsSetPublicRoute
+  '/api/data/projects': typeof ApiDataProjectsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +166,12 @@ export interface FileRoutesById {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/data/tx': typeof ApiDataTxRoute
+  '/api/data/projects/$id': typeof ApiDataProjectsIdRoute
+  '/api/data/projects/duplicate': typeof ApiDataProjectsDuplicateRoute
+  '/api/data/projects/remove': typeof ApiDataProjectsRemoveRoute
+  '/api/data/projects/set-public': typeof ApiDataProjectsSetPublicRoute
+  '/api/data/projects/': typeof ApiDataProjectsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +187,12 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/data/tx'
+    | '/api/data/projects/$id'
+    | '/api/data/projects/duplicate'
+    | '/api/data/projects/remove'
+    | '/api/data/projects/set-public'
+    | '/api/data/projects/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +206,12 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/data/tx'
+    | '/api/data/projects/$id'
+    | '/api/data/projects/duplicate'
+    | '/api/data/projects/remove'
+    | '/api/data/projects/set-public'
+    | '/api/data/projects'
   id:
     | '__root__'
     | '/'
@@ -157,6 +225,12 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/data/tx'
+    | '/api/data/projects/$id'
+    | '/api/data/projects/duplicate'
+    | '/api/data/projects/remove'
+    | '/api/data/projects/set-public'
+    | '/api/data/projects/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +245,12 @@ export interface RootRouteChildren {
   ApiAgentsSendRoute: typeof ApiAgentsSendRoute
   ApiAgentsSpawnRoute: typeof ApiAgentsSpawnRoute
   ApiAgentsStopRoute: typeof ApiAgentsStopRoute
+  ApiDataTxRoute: typeof ApiDataTxRoute
+  ApiDataProjectsIdRoute: typeof ApiDataProjectsIdRoute
+  ApiDataProjectsDuplicateRoute: typeof ApiDataProjectsDuplicateRoute
+  ApiDataProjectsRemoveRoute: typeof ApiDataProjectsRemoveRoute
+  ApiDataProjectsSetPublicRoute: typeof ApiDataProjectsSetPublicRoute
+  ApiDataProjectsIndexRoute: typeof ApiDataProjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +332,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsStopRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/data/tx': {
+      id: '/api/data/tx'
+      path: '/api/data/tx'
+      fullPath: '/api/data/tx'
+      preLoaderRoute: typeof ApiDataTxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/data/projects/': {
+      id: '/api/data/projects/'
+      path: '/api/data/projects'
+      fullPath: '/api/data/projects/'
+      preLoaderRoute: typeof ApiDataProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/data/projects/$id': {
+      id: '/api/data/projects/$id'
+      path: '/api/data/projects/$id'
+      fullPath: '/api/data/projects/$id'
+      preLoaderRoute: typeof ApiDataProjectsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/data/projects/duplicate': {
+      id: '/api/data/projects/duplicate'
+      path: '/api/data/projects/duplicate'
+      fullPath: '/api/data/projects/duplicate'
+      preLoaderRoute: typeof ApiDataProjectsDuplicateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/data/projects/remove': {
+      id: '/api/data/projects/remove'
+      path: '/api/data/projects/remove'
+      fullPath: '/api/data/projects/remove'
+      preLoaderRoute: typeof ApiDataProjectsRemoveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/data/projects/set-public': {
+      id: '/api/data/projects/set-public'
+      path: '/api/data/projects/set-public'
+      fullPath: '/api/data/projects/set-public'
+      preLoaderRoute: typeof ApiDataProjectsSetPublicRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +389,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentsSendRoute: ApiAgentsSendRoute,
   ApiAgentsSpawnRoute: ApiAgentsSpawnRoute,
   ApiAgentsStopRoute: ApiAgentsStopRoute,
+  ApiDataTxRoute: ApiDataTxRoute,
+  ApiDataProjectsIdRoute: ApiDataProjectsIdRoute,
+  ApiDataProjectsDuplicateRoute: ApiDataProjectsDuplicateRoute,
+  ApiDataProjectsRemoveRoute: ApiDataProjectsRemoveRoute,
+  ApiDataProjectsSetPublicRoute: ApiDataProjectsSetPublicRoute,
+  ApiDataProjectsIndexRoute: ApiDataProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

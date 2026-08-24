@@ -1,6 +1,5 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
-import ConvexProvider from '../integrations/convex/provider'
 import { Toaster } from 'sonner'
 import { TooltipProvider } from '#/components/ui/tooltip'
 
@@ -37,10 +36,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <ConvexProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-          <Toaster position="bottom-right" richColors />
-        </ConvexProvider>
+        <TooltipProvider>{children}</TooltipProvider>
+        <Toaster position="bottom-right" richColors />
         <Scripts />
       </body>
     </html>

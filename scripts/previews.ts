@@ -1,36 +1,37 @@
 /**
- * Preview worker: every 30 s it asks Convex which projects' stored preview
+ * Preview worker: every 30 s it asks Postgres which projects' stored preview
  * hash no longer matches their circuit, renders those in headless Chrome
- * (the chrome-less /preview/$id route) and uploads the PNG.
+ * (the chrome-less /preview/$id route) and stores the image.
  *
  *   bun run previews            # loop
  *   bun run previews --once     # single pass (CI / manual)
  *
  * Chrome is the system install — playwright-core downloads nothing.
+ *
+ * There is no blob store in the Postgres/Electric stack, so the image lives in
+ * `projects.preview` as a JPEG data URL: it streams to the browser with the
+ * project row and needs no second request. JPEG (not PNG) keeps a card-sized
+ * render around a hundred kilobytes.
  */
 import { chromium } from 'playwright-core'
+import { setProjectPreview, stalePreviews } from '../server/db'
 import type { Browser } from 'playwright-core'
-import { ConvexHttpClient } from 'convex/browser'
-import { api } from '../convex/_generated/api'
 
-const CONVEX_URL = process.env.VITE_CONVEX_URL
-if (!CONVEX_URL) throw new Error('VITE_CONVEX_URL is not set (see .env.local)')
 const APP_URL = process.env.PREVIEW_APP_URL ?? 'http://localhost:3005'
 const CHROME =
   process.env.PREVIEW_CHROME ??
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const INTERVAL_MS = Number(process.env.PREVIEW_INTERVAL_MS ?? 30_000)
 const VIEWPORT = { width: 1024, height: 640 }
+const JPEG_QUALITY = 78
 /** A render that hangs (WebGL context lost, dev server restart) must not wedge the loop. */
 const RENDER_TIMEOUT_MS = 40_000
 const BATCH = Number(process.env.PREVIEW_BATCH ?? 6)
 
-const convex = new ConvexHttpClient(CONVEX_URL)
-
 async function render(browser: Browser, id: string) {
   const page = await browser.newPage({
     viewport: VIEWPORT,
-    deviceScaleFactor: 2,
+    deviceScaleFactor: 1,
   })
   try {
     await page.goto(`${APP_URL}/preview/${id}`, {
@@ -40,34 +41,26 @@ async function render(browser: Browser, id: string) {
     await page.waitForFunction(() => window.__previewReady === true, null, {
       timeout: RENDER_TIMEOUT_MS,
     })
-    return await page.screenshot({ type: 'png' })
+    return await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY })
   } finally {
     await page.close()
   }
 }
 
-async function upload(id: string, hash: string, png: Buffer) {
-  const url = await convex.mutation(api.projects.generatePreviewUploadUrl, {})
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'image/png' },
-    body: new Uint8Array(png),
-  })
-  if (!res.ok) throw new Error(`upload failed (${res.status})`)
-  const { storageId } = (await res.json()) as { storageId: string }
-  await convex.mutation(api.projects.setPreview, {
+async function store(id: string, hash: string, jpeg: Buffer) {
+  await setProjectPreview(
     id,
-    storageId: storageId as never,
+    `data:image/jpeg;base64,${jpeg.toString('base64')}`,
     hash,
-  })
+  )
 }
 
 async function pass(browser: Browser) {
-  const stale = await convex.query(api.projects.stalePreviews, { limit: BATCH })
+  const stale = await stalePreviews(BATCH)
   if (!stale.length) return 0
   for (const { id, hash } of stale) {
     try {
-      await upload(id, hash, await render(browser, id))
+      await store(id, hash, await render(browser, id))
       console.log(`preview ${id.slice(0, 8)} → ${hash}`)
     } catch (e) {
       console.error(`preview ${id.slice(0, 8)} failed:`, (e as Error).message)
@@ -91,3 +84,5 @@ try {
 } finally {
   await browser.close()
 }
+// the postgres pool keeps the loop alive otherwise
+process.exit(0)

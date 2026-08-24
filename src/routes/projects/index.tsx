@@ -1,15 +1,18 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
 import { Plus } from 'lucide-react'
-import { api } from '../../../convex/_generated/api'
 import { ProjectGrid, SectionLabel, SiteHeader } from '../index'
+import { useProjectList } from '#/lib/collections'
 import { Button } from '#/components/ui/button'
 
-export const Route = createFileRoute('/projects/')({ component: Projects })
+// The grid reads Electric-backed collections, which need `window`.
+export const Route = createFileRoute('/projects/')({
+  component: Projects,
+  ssr: false,
+})
 
 /** Every project (the curated ones live on the landing page). */
 function Projects() {
-  const projects = useQuery(api.projects.list, {})
+  const projects = useProjectList()
   const navigate = useNavigate()
   return (
     <>
