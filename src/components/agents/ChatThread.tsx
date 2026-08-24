@@ -12,7 +12,6 @@ import {
   CpuIcon,
   FileIcon,
   FolderOpenIcon,
-  MessageCircleDashedIcon,
   MinusIcon,
   PlayIcon,
   PlusIcon,
@@ -24,13 +23,6 @@ import type { LucideIcon } from 'lucide-react'
 import { Streamdown } from 'streamdown'
 import { Bubble, BubbleContent } from '#/components/ui/bubble'
 import { Button } from '#/components/ui/button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '#/components/ui/empty'
 import { Marker, MarkerContent, MarkerIcon } from '#/components/ui/marker'
 import { Message, MessageContent, MessageFooter } from '#/components/ui/message'
 import {
@@ -232,9 +224,11 @@ function UserAttachments({
 }
 
 const SUGGESTIONS = [
-  'Blink an LED on pin 13 with a 220 Ω resistor',
-  'Check my circuit for mistakes and fix them',
-  'Build a thermostat: TMP36, potentiometer and an I²C LCD',
+  'Blink an LED on pin 13',
+  'Add a button that toggles the LED',
+  'Build a traffic light',
+  'Check my circuit and fix it',
+  'Make a thermostat with an LCD',
 ] as const
 
 /**
@@ -315,31 +309,22 @@ export function ChatThread({
           </p>
         ) : sections.length === 0 ? (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <Empty className="h-full">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <MessageCircleDashedIcon />
-                </EmptyMedia>
-                <EmptyTitle>Ask bulbus</EmptyTitle>
-                <EmptyDescription>
-                  Build, wire, code and simulate — the agent edits this project
-                  live.
-                </EmptyDescription>
-              </EmptyHeader>
-              <div className="mt-2 w-full max-w-sm">
-                {SUGGESTIONS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => void send({ text: prompt, attachments: [] })}
-                    className="block w-full border-b px-1 py-3 text-left text-[13px] text-muted-foreground transition-colors last:border-b-0 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </Empty>
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8">
+              <p className="pb-1 text-[15px] font-semibold">
+                Let&apos;s build!
+              </p>
+              {SUGGESTIONS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => void send({ text: prompt, attachments: [] })}
+                  className="rounded-full bg-muted px-4 py-2 text-[13px] text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <MessageScrollerProvider autoScroll>

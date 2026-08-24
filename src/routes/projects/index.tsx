@@ -8,6 +8,7 @@ import { Button } from '#/components/ui/button'
 export const Route = createFileRoute('/projects/')({
   component: Projects,
   ssr: false,
+  head: () => ({ meta: [{ title: 'Projects · bulbus' }] }),
 })
 
 /** Every project (the curated ones live on the landing page). */

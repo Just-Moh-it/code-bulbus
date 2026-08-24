@@ -2,7 +2,7 @@ import {
   ArrowUpIcon,
   CircleStopIcon,
   FileIcon,
-  PaperclipIcon,
+  PlusIcon,
   XIcon,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -254,7 +254,7 @@ export function ChatComposer({
                 disabled={disabled}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <PaperclipIcon />
+                <PlusIcon />
               </InputGroupButton>
             </TooltipTrigger>
             <TooltipContent>Attach</TooltipContent>

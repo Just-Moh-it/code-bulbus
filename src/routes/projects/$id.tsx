@@ -10,6 +10,7 @@ import {
   removeProject,
 } from '#/lib/api'
 import { useProjectSnapshot } from '#/lib/collections'
+import { useDocumentTitle } from '#/lib/use-document-title'
 import { ArduinoUnoPart, EditorProject } from '#/editor/models'
 import { ProjectCanvas } from '#/editor/scene/ProjectCanvas'
 import { PartContextMenu } from '#/components/editor/ContextMenu'
@@ -69,6 +70,10 @@ function ProjectPage() {
     })
   }, [server, template, id, json])
   const project = useMemo(() => (json ? new EditorProject(json) : null), [json])
+  // the tab tracks the project as it is renamed, and flags a running simulation
+  useDocumentTitle(
+    server ? `${simulator ? '▶ ' : ''}${server.project.name}` : null,
+  )
   useProjectSync(project, server)
   // dev aid: inspect the live model from the console
   useEffect(() => {

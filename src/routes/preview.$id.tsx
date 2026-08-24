@@ -17,7 +17,7 @@ const MAX_WAIT_MS = 20_000
 export const Route = createFileRoute('/preview/$id')({
   component: PreviewPage,
   ssr: false,
-  head: () => ({ meta: [{ title: 'bulbus preview' }] }),
+  head: () => ({ meta: [{ title: 'Preview · bulbus' }] }),
 })
 
 function PreviewPage() {

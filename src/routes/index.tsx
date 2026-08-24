@@ -6,25 +6,37 @@ import { UserMenu } from '#/components/auth/UserMenu'
 import { Button } from '#/components/ui/button'
 
 // The grids read Electric-backed collections, which need `window`.
-export const Route = createFileRoute('/')({ component: Home, ssr: false })
+export const Route = createFileRoute('/')({
+  component: Home,
+  ssr: false,
+  head: () => ({
+    meta: [{ title: 'bulbus — Build and simulate real circuits' }],
+  }),
+})
 
 export function SiteHeader() {
   return (
-    <nav className="sticky top-0 z-10 flex h-11 w-full shrink-0 items-center border-b border-border bg-card/90 px-3 backdrop-blur md:px-6">
-      <Link to="/" className="flex items-center gap-2">
-        <Logo />
-        <span className="text-sm font-semibold tracking-tight">bulbus</span>
-      </Link>
-      <div className="flex px-6">
-        <Link
-          to="/projects"
-          className="text-[13px] font-medium text-muted-foreground hover:text-foreground"
-        >
-          Projects
+    <div className="sticky top-0 z-10 px-4 pt-4 pb-2">
+      <nav className="glass mx-auto flex h-14 w-full max-w-5xl items-center gap-1 rounded-full border pr-2 pl-5">
+        <Link to="/" className="flex items-center gap-2">
+          <Logo className="size-6" />
+          <span className="text-[15px] font-semibold tracking-tight">
+            bulbus
+          </span>
         </Link>
-      </div>
-      <UserMenu className="ml-auto" />
-    </nav>
+        <div className="ml-8 hidden items-center gap-6 sm:flex">
+          <Link
+            to="/projects"
+            className="text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Projects
+          </Link>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <UserMenu />
+        </div>
+      </nav>
+    </div>
   )
 }
 
@@ -86,7 +98,7 @@ export function ProjectGrid({
       </p>
     )
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {projects.map((p) => (
         <ProjectCard
           key={p.id}
@@ -112,33 +124,35 @@ function Home() {
   return (
     <>
       <SiteHeader />
-      <main className="min-h-[calc(100vh-2.75rem)]">
-        <section className="border-b border-border bg-card">
-          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-16 md:py-24">
-            <p className="text-[11px] font-semibold tracking-[0.2em] text-primary uppercase">
-              Breadboard · Arduino · SPICE
-            </p>
-            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance md:text-5xl">
-              Build and simulate real circuits in the browser.
-            </h1>
-            <p className="max-w-xl text-base text-muted-foreground">
-              Drop parts on a 3D breadboard, wire them up, write the sketch and
-              run it — ngspice and an AVR emulator, live. Or just ask the agent
-              to build it for you.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => open('blank')}>
-                <Plus className="size-4" />
-                New project
-              </Button>
-              <Button variant="outline" onClick={() => open('thermostat')}>
-                <Thermometer className="size-4" />
-                Thermostat demo
-              </Button>
-            </div>
+      <main className="mx-auto w-full max-w-5xl px-4">
+        <section className="flex flex-col items-center gap-7 py-24 text-center md:py-32">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+            Breadboard · Arduino · SPICE
+          </p>
+          <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-balance md:text-6xl">
+            Build and simulate real circuits in the browser.
+          </h1>
+          <p className="max-w-xl text-lg text-pretty text-muted-foreground">
+            Drop parts on a 3D breadboard, wire them up, write the sketch and
+            run it — ngspice and an AVR emulator, live. Or just ask the agent to
+            build it for you.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 pt-2">
+            <Button size="lg" onClick={() => open('blank')}>
+              <Plus className="size-4" />
+              New project
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => open('thermostat')}
+            >
+              <Thermometer className="size-4" />
+              Thermostat demo
+            </Button>
           </div>
         </section>
-        <section className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10">
+        <section className="flex flex-col gap-5 pb-20">
           <div className="flex items-baseline justify-between">
             <SectionLabel>Curated projects</SectionLabel>
             <Link

@@ -23,27 +23,41 @@ import type { EditorProject } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
 
 /** Logo mark (the reference's `DiodeLogo` is a custom glyph; we use a simple diode symbol). */
-export function Logo({
-  className = 'size-6 text-primary',
-}: {
-  className?: string
-}) {
+export function Logo({ className = 'size-6' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 61 61" className={className} aria-hidden>
-      <circle
-        cx="30.5"
-        cy="30.5"
-        r="28"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <g fill="none" stroke="#FFC107" strokeWidth="1.8" strokeLinecap="round">
+        <path d="M24 4.6v4.8" />
+        <path d="m10.6 9.8 4.1 4.1" />
+        <path d="m37.4 13.9 4.1-4.1" />
+        <path d="M5 24h5" />
+        <path d="M38 24h5" />
+        <path d="m10.6 39.2 4.1-4.1" />
+        <path d="m37.4 35.1 4.1 4.1" />
+      </g>
+      <path
+        fill="#FFC107"
+        d="M24 13.6c-5.72 0-10.36 4.64-10.36 10.36 0 3.44 1.74 6.49 3.59 8.98 1.63 2.19 2.41 3.78 2.41 6.48v.78h8.72v-.78c0-2.7.78-4.29 2.41-6.48 1.85-2.49 3.59-5.54 3.59-8.98C34.36 18.24 29.72 13.6 24 13.6Z"
       />
       <path
-        d="M14 30.5h10M24 19v23l16-11.5z M40 19v23M40 30.5h8"
-        fill="currentColor"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        d="M17.8 20.3c0-3.7 2.7-6.8 6.5-7.3"
+      />
+      <g
+        fill="none"
         stroke="currentColor"
-        strokeWidth="3"
-        strokeLinejoin="round"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      >
+        <path d="m19.8 35.2 8.2-1.1" />
+        <path d="m19.8 38.2 8.2-1.1" />
+      </g>
+      <path
+        fill="currentColor"
+        d="M21.3 41h5.4c-.3 1.45-1.25 2.25-2.7 2.25S21.6 42.45 21.3 41Z"
       />
     </svg>
   )
