@@ -364,7 +364,7 @@ function ClockBadge({ simulator }: { simulator: Simulator }) {
   return (
     <div
       ref={ref}
-      className="absolute top-4 left-1/2 -translate-x-1/2 rounded-md bg-[#2a2a2a] px-2 py-0.5 text-sm text-white"
+      className="absolute top-4 left-1/2 -translate-x-1/2 rounded-md bg-foreground/85 px-2 py-0.5 text-sm text-background backdrop-blur-md backdrop-saturate-150"
     >
       Clock: 0.00s
     </div>

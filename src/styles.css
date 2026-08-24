@@ -153,3 +153,25 @@
   color: transparent;
   animation: shimmer 2s infinite linear;
 }
+
+/* Floating canvas UI reads as frosted glass over the 3D scene: a translucent
+   card tint, a saturating blur behind it, and a hairline edge — the macOS
+   sidebar recipe. Solid `--card` where backdrop-filter is unsupported. */
+@utility glass {
+  background-color: color-mix(in oklab, var(--card) 70%, transparent);
+  backdrop-filter: saturate(180%) blur(30px);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+  border-color: color-mix(in oklab, var(--border) 80%, transparent);
+  box-shadow:
+    inset 0 0.5px 0 color-mix(in oklab, white 60%, transparent),
+    0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 8px 24px -14px color-mix(in oklab, var(--foreground) 25%, transparent);
+}
+
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .glass {
+    background-color: var(--card);
+  }
+}

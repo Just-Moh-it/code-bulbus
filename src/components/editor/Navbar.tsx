@@ -195,7 +195,7 @@ export const EditorTopBar = observer(function EditorTopBar({
   onDuplicate: () => Promise<void>
 }) {
   return (
-    <div className="pointer-events-auto flex h-10 items-center gap-2 rounded-md border border-border bg-card px-2 shadow-sm">
+    <div className="glass pointer-events-auto flex h-10 items-center gap-2 rounded-md border px-2">
       <Link to="/" className="flex items-center px-1" aria-label="Home">
         <Logo />
       </Link>

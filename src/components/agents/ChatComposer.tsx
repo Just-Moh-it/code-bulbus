@@ -214,7 +214,7 @@ export function ChatComposer({
         </AttachmentGroup>
       )}
 
-      <InputGroup className="rounded-md">
+      <InputGroup className="rounded-md bg-card/60">
         <InputGroupTextarea
           ref={textareaRef}
           aria-label="Message bulbus"

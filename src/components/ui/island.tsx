@@ -69,7 +69,7 @@ export function Island({
     <aside
       style={{ width }}
       className={cn(
-        'pointer-events-auto relative flex shrink-0 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm',
+        'glass pointer-events-auto relative flex shrink-0 flex-col overflow-hidden rounded-md border',
         collapsed ? 'h-auto self-start' : heightClass,
         className,
       )}
