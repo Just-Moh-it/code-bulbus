@@ -16,6 +16,7 @@ import { PartContextMenu } from '#/components/editor/ContextMenu'
 import { EditorTopBar, SimulateButton } from '#/components/editor/Navbar'
 import { EditorLeftPanel, SimLeftPanel } from '#/components/editor/Panels'
 import { AgentsPanel } from '#/components/agents/AgentsPanel'
+import { UserMenu } from '#/components/auth/UserMenu'
 import { Simulator } from '#/simulator/model'
 import { SimCanvas } from '#/simulator/SimCanvas'
 import { defaultProject } from '#/lib/projects'
@@ -175,11 +176,14 @@ function ProjectPage() {
             </div>
           </div>
           <div className="flex-1" />
-          <AgentsPanel
-            projectId={id}
-            action={simulateButton}
-            compact={!!simulator}
-          />
+          <div className="flex h-full flex-col items-end gap-3">
+            <div className="glass pointer-events-auto flex h-10 items-center gap-1.5 rounded-md border px-1.5">
+              <UserMenu />
+              {simulateButton}
+            </div>
+            <div className="flex-1" />
+            <AgentsPanel projectId={id} compact={!!simulator} />
+          </div>
         </div>
       </div>
     </div>

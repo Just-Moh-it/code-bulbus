@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from './button'
 import { cn } from '#/lib/utils.ts'
 
@@ -35,6 +35,7 @@ export function Island({
   maxWidth = 620,
   header,
   heightClass = 'h-full',
+  anchor = 'top',
   children,
   className,
 }: {
@@ -44,9 +45,12 @@ export function Island({
   defaultWidth: number
   minWidth?: number
   maxWidth?: number
-  header: ReactNode
+  /** Pass a function to render differently while collapsed. */
+  header: ReactNode | ((collapsed: boolean) => ReactNode)
   /** Height while expanded; collapsed islands always hug their header. */
   heightClass?: string
+  /** Bottom-anchored islands collapse toward the bottom edge and expand upward. */
+  anchor?: 'top' | 'bottom'
   children: ReactNode
   className?: string
 }) {
@@ -70,7 +74,11 @@ export function Island({
       style={{ width }}
       className={cn(
         'glass pointer-events-auto relative flex shrink-0 flex-col overflow-hidden rounded-md border',
-        collapsed ? 'h-auto self-start' : heightClass,
+        collapsed
+          ? anchor === 'bottom'
+            ? 'h-auto self-end'
+            : 'h-auto self-start'
+          : heightClass,
         className,
       )}
     >
@@ -78,20 +86,31 @@ export function Island({
         className={cn(
           'flex h-10 shrink-0 items-center gap-1 pr-1.5 pl-3',
           !collapsed && 'border-b border-border',
+          collapsed && 'cursor-pointer',
         )}
+        onClick={collapsed ? () => setCollapsed(false) : undefined}
       >
-        {header}
+        {typeof header === 'function' ? header(collapsed) : header}
         <Button
           variant="ghost"
           size="icon-sm"
           className="shrink-0 text-muted-foreground"
           aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
           aria-expanded={!collapsed}
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={(e) => {
+            e.stopPropagation()
+            setCollapsed((c) => !c)
+          }}
         >
-          <ChevronDown
-            className={cn('transition-transform', !collapsed && 'rotate-180')}
-          />
+          {anchor === 'bottom' ? (
+            <ChevronUp
+              className={cn('transition-transform', !collapsed && 'rotate-180')}
+            />
+          ) : (
+            <ChevronDown
+              className={cn('transition-transform', !collapsed && 'rotate-180')}
+            />
+          )}
         </Button>
       </header>
       {!collapsed && (
