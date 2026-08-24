@@ -20,10 +20,13 @@ export const MotorModel = forwardRef<SpeedHandle, ComponentProps<'group'>>(
       },
     }))
 
-    useFrame((state) => {
-      if (rotor.current)
-        rotor.current.rotation.y += state.clock.getDelta() * speed.current
-    }, 1)
+    // Priority must stay 0: a useFrame with renderPriority > 0 hands the render
+    // loop to the caller, and nothing here calls gl.render(), so mounting a
+    // motor would freeze the editor canvas. Use the delta argument rather than
+    // clock.getDelta(), which consumes the delta R3F reads once per frame.
+    useFrame((_, delta) => {
+      if (rotor.current) rotor.current.rotation.y += delta * speed.current
+    })
 
     return (
       <group {...props} dispose={null}>
