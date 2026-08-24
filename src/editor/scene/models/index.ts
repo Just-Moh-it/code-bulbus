@@ -1,4 +1,5 @@
 import { useGLTF } from '@react-three/drei'
+import type { PartType } from '#/sim/types'
 
 export { ArduinoUnoModel } from './arduino-uno'
 export type { IntensityHandle } from './arduino-uno'
@@ -21,20 +22,34 @@ export { Tmp36Model } from './tmp36'
 export type { LcdHandle } from './lcd1602'
 export { mapRange, resistorBands } from './util'
 
-/** Warm every model so adding a part never suspends the scene. */
-export const MODEL_URLS = [
-  '/8-pin-ic.glb',
-  '/arduino-uno.glb',
-  '/battery.glb',
-  '/bjt-transistor.glb',
-  '/breadboard.glb',
-  '/capacitor.glb',
-  '/led.glb',
-  '/motor.glb',
-  '/resistor.glb',
-  '/rpi.glb',
-  '/switch.glb',
-]
-export function preloadModels() {
-  MODEL_URLS.forEach((u) => useGLTF.preload(u))
+/** Which GLB each part type needs; parts without an entry are drawn procedurally. */
+export const MODEL_URL_BY_TYPE: Partial<Record<PartType, string>> = {
+  'arduino-uno': '/arduino-uno.glb',
+  'raspberry-pi': '/rpi.glb',
+  breadboard: '/breadboard.glb',
+  battery: '/battery.glb',
+  capacitor: '/capacitor.glb',
+  led: '/led.glb',
+  motor: '/motor.glb',
+  resistor: '/resistor.glb',
+  'tactile-switch': '/switch.glb',
+  timer: '/8-pin-ic.glb',
+  '8-pin-chip': '/8-pin-ic.glb',
+  'npn-transistor': '/bjt-transistor.glb',
+  'pnp-transistor': '/bjt-transistor.glb',
+}
+
+/** Every model, for warming the palette. */
+export const MODEL_URLS = [...new Set(Object.values(MODEL_URL_BY_TYPE))]
+
+/**
+ * Warm models. Pass the project's part types to fetch only what the scene
+ * needs: the 2.5 MB Arduino should not be queueing behind models (rpi, motor)
+ * this circuit never shows.
+ */
+export function preloadModels(types?: PartType[]) {
+  const urls = types
+    ? [...new Set(types.map((t) => MODEL_URL_BY_TYPE[t]).filter(Boolean))]
+    : MODEL_URLS
+  urls.forEach((u) => useGLTF.preload(u as string))
 }

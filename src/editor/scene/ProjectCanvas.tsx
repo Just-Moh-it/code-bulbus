@@ -2,7 +2,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import type * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
-import { AdaptiveDpr, OrbitControls } from '@react-three/drei'
+import { AdaptiveDpr, OrbitControls, useProgress } from '@react-three/drei'
 import type { EditorProject } from '#/editor/models'
 import { ProjectContext, useProject } from './context'
 import { PartContainer } from './PartContainer'
@@ -30,19 +30,37 @@ const CameraSync = observer(function CameraSync() {
   return null
 })
 
-function useDelayedTrue(ms: number) {
-  const [v, setV] = useState(false)
+/**
+ * True once every GLB the scene asked for has landed (drei's loader store),
+ * with a floor so the first paint is never a flash and a ceiling so a failed
+ * model still reveals the circuit. Parts mount behind their own Suspense, so
+ * without this gate the scene pops in piece by piece — the Arduino, at 2.5 MB,
+ * arriving seconds after the wires.
+ */
+function useSceneReady(minMs = 250, maxMs = 12_000) {
+  const { active, loaded, total } = useProgress()
+  const [floor, setFloor] = useState(false)
+  const [ceiling, setCeiling] = useState(false)
   useEffect(() => {
-    const t = setTimeout(() => setV(true), ms)
-    return () => clearTimeout(t)
-  }, [ms])
-  return v
+    const a = setTimeout(() => setFloor(true), minMs)
+    const b = setTimeout(() => setCeiling(true), maxMs)
+    return () => {
+      clearTimeout(a)
+      clearTimeout(b)
+    }
+  }, [minMs, maxMs])
+  const loadersIdle = !active && total > 0 && loaded >= total
+  return ceiling || (floor && loadersIdle)
 }
 
 const Scene = observer(function Scene({ project }: { project: EditorProject }) {
-  const visible = useDelayedTrue(400)
+  const visible = useSceneReady()
   const circuit = project.circuit
-  useEffect(() => preloadModels(), [])
+  // fetch exactly the models this circuit uses, as early as we know them
+  useEffect(
+    () => preloadModels(circuit.parts.map((p) => p.type)),
+    [circuit, circuit.parts.length],
+  )
   const rootRef = useCallback(
     (g: THREE.Group | null) => circuit.setRoot(g),
     [circuit],
@@ -57,7 +75,7 @@ const Scene = observer(function Scene({ project }: { project: EditorProject }) {
       resize={{ debounce: 0 }}
       onPointerMissed={() => project.setSelection(null)}
       gl={{ preserveDrawingBuffer: true }}
-      style={{ opacity: visible ? 1 : 0, transition: 'opacity 1.5s' }}
+      style={{ opacity: visible ? 1 : 0, transition: 'opacity 300ms' }}
     >
       <color attach="background" args={[CANVAS_BG]} />
       <AdaptiveDpr pixelated />
