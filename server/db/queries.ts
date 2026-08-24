@@ -175,6 +175,8 @@ export async function duplicateProject(input: {
   id: string
   newId: string
   name?: string
+  /** Owner of the copy — the session user, stamped by the route. */
+  userId?: string | null
 }): Promise<{ id: string; txid: string }> {
   return db.transaction(async (tx) => {
     const [src] = await tx
@@ -186,7 +188,7 @@ export async function duplicateProject(input: {
     await tx.insert(projects).values({
       id: input.newId,
       name: input.name ?? `${src.name} (copy)`,
-      userId: src.userId,
+      userId: input.userId !== undefined ? input.userId : src.userId,
       parentId: input.id,
       featured: false,
       isPublic: false,
