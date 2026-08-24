@@ -184,7 +184,7 @@ function BackTitle({ label, onBack }: { label: string; onBack: () => void }) {
     <button
       type="button"
       onClick={onBack}
-      className="-ml-1 flex min-w-0 flex-1 items-center gap-1 rounded-sm px-1 py-1 text-left text-[13px] font-semibold hover:bg-muted"
+      className="-ml-1 flex min-w-0 flex-1 items-center gap-1 rounded-sm px-1 py-1 text-left text-[14px] font-semibold hover:bg-muted"
     >
       <ChevronLeft className="size-3.5 shrink-0 text-muted-foreground" />
       <span className="truncate">{label}</span>
@@ -199,7 +199,7 @@ const Palette = observer(function Palette({
 }) {
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-3">
-      <h3 className="px-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+      <h3 className="px-2 text-[12px] font-semibold tracking-wider text-muted-foreground uppercase">
         Parts
       </h3>
       <ul className="flex select-none flex-col gap-px">
@@ -208,7 +208,7 @@ const Palette = observer(function Palette({
           return (
             <li
               key={p.stampType}
-              className={`flex h-9 cursor-pointer items-center gap-2.5 rounded-sm px-2 text-[13px] ${active ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted'}`}
+              className={`flex h-9 cursor-pointer items-center gap-2.5 rounded-sm px-2 text-[14px] ${active ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted'}`}
               onPointerDown={() =>
                 project.setStampType(p.stampType as StampType)
               }

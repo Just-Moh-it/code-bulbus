@@ -84,7 +84,7 @@ function Avatar({ user }: { user: SessionUser | null }) {
     )
   if (initials)
     return (
-      <span className="text-[10px] font-semibold tracking-tight">
+      <span className="text-[11px] font-semibold tracking-tight">
         {initials}
       </span>
     )
@@ -142,7 +142,7 @@ export function UserMenu({ className }: { className?: string }) {
               <DropdownMenuLabel className="flex flex-col gap-0.5">
                 <span>Guest session</span>
                 {user && (
-                  <span className="truncate font-mono text-[11px] font-normal text-muted-foreground">
+                  <span className="truncate font-mono text-[12px] font-normal text-muted-foreground">
                     {user.id.slice(0, 8)}
                   </span>
                 )}
@@ -170,7 +170,7 @@ export function UserMenu({ className }: { className?: string }) {
               <DropdownMenuLabel className="flex flex-col gap-0.5">
                 <span className="truncate">{user.name || 'Signed in'}</span>
                 {user.email && (
-                  <span className="truncate text-[11px] font-normal text-muted-foreground">
+                  <span className="truncate text-[12px] font-normal text-muted-foreground">
                     {user.email}
                   </span>
                 )}

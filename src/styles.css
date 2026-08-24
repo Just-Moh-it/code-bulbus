@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 /* Streamdown's markdown components carry their Tailwind classes in its dist */
@@ -77,8 +77,20 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  /* the whole UI is monospace: one family, used for `font-sans` too */
+  --font-sans: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* one notch up from Tailwind's defaults — mono runs small and wide */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.15rem;
+  --text-sm: 0.9063rem;
+  --text-sm--line-height: 1.35rem;
+  --text-base: 1.0313rem;
+  --text-base--line-height: 1.55rem;
+  --text-lg: 1.1563rem;
+  --text-lg--line-height: 1.7rem;
+  --text-xl: 1.3125rem;
+  --text-xl--line-height: 1.85rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -127,7 +139,12 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: 'cv11', 'ss01';
+    /* mono is wide: pull it back in slightly so headings still read tight */
+    letter-spacing: -0.011em;
+  }
+  h1,
+  h2 {
+    letter-spacing: -0.03em;
   }
 }
 

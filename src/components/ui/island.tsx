@@ -16,7 +16,7 @@ function readStored(key: string, fallback: number) {
 /** Title slot for an island header. */
 export function IslandTitle({ children }: { children: ReactNode }) {
   return (
-    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+    <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
       {children}
     </span>
   )

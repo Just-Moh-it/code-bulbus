@@ -20,14 +20,14 @@ export function SiteHeader() {
       <nav className="glass mx-auto flex h-14 w-full max-w-5xl items-center gap-1 rounded-full border pr-2 pl-5">
         <Link to="/" className="flex items-center gap-2">
           <Logo className="size-6" />
-          <span className="text-[15px] font-semibold tracking-tight">
+          <span className="text-[16px] font-semibold tracking-tight">
             bulbus
           </span>
         </Link>
         <div className="ml-8 hidden items-center gap-6 sm:flex">
           <Link
             to="/projects"
-            className="text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Projects
           </Link>
@@ -42,7 +42,7 @@ export function SiteHeader() {
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+    <h2 className="text-[12px] font-semibold tracking-wider text-muted-foreground uppercase">
       {children}
     </h2>
   )
@@ -74,7 +74,7 @@ export function ProjectCard({
         )}
       </div>
       <div className="flex items-center justify-between px-3 py-2">
-        <span className="truncate text-[13px] font-medium">{name}</span>
+        <span className="truncate text-[14px] font-medium">{name}</span>
         <ArrowRight className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
     </Link>
@@ -89,11 +89,11 @@ export function ProjectGrid({
 }) {
   if (!projects)
     return (
-      <div className="min-h-40 text-[13px] text-muted-foreground">Loading…</div>
+      <div className="min-h-40 text-[14px] text-muted-foreground">Loading…</div>
     )
   if (projects.length === 0)
     return (
-      <p className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-[13px] text-muted-foreground">
+      <p className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-[14px] text-muted-foreground">
         No projects yet.
       </p>
     )
@@ -126,7 +126,7 @@ function Home() {
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl px-4">
         <section className="flex flex-col items-center gap-7 py-24 text-center md:py-32">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+          <p className="text-[12px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
             Breadboard · Arduino · SPICE
           </p>
           <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-balance md:text-6xl">
@@ -157,7 +157,7 @@ function Home() {
             <SectionLabel>Curated projects</SectionLabel>
             <Link
               to="/projects"
-              className="text-[13px] font-medium text-primary hover:underline"
+              className="text-[14px] font-medium text-primary hover:underline"
             >
               All projects
             </Link>

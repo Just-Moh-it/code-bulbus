@@ -54,7 +54,7 @@ export function Section({
 }) {
   return (
     <div className="flex flex-col gap-2.5 border-b border-border px-4 py-3.5">
-      <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+      <h3 className="text-[12px] font-semibold tracking-wider text-muted-foreground uppercase">
         {title}
       </h3>
       {children}
@@ -71,7 +71,7 @@ export function Row({
 }) {
   return (
     <div className="flex min-h-7 items-center justify-between gap-3">
-      <span className="text-[13px]">{label}</span>
+      <span className="text-[14px]">{label}</span>
       {children}
     </div>
   )
@@ -88,7 +88,7 @@ function SmallSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger size="sm" className="max-w-[55%] text-[13px]">
+      <SelectTrigger size="sm" className="max-w-[55%] text-[14px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -413,7 +413,7 @@ export function RangeRow({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between text-[13px]">
+      <div className="flex items-center justify-between text-[14px]">
         <span>{label}</span>
         <span className="tabular-nums text-muted-foreground">
           {format(value)}
