@@ -54,6 +54,35 @@ function normalise(r: ResultType): SpiceResult {
  * Run a transient netlist and return parsed vectors.
  * Rejects with `{ errors, warnings }` if ngspice reports a failure.
  */
+/**
+ * ngspice writes its per-run chatter ("Note: ... dc value used for op ...") to
+ * stderr and eecircuit-engine forwards every line to `console.error` — about
+ * five calls per 50 ms window, so ~110 a second while a simulation plays.
+ *
+ * React DevTools patches console.error/warn/trace to append a component stack,
+ * which is far more expensive than a plain log. At this call rate the extension
+ * saturates the main thread, requestAnimationFrame starves, and the playback
+ * clock never advances — the tab looks frozen with the clock stuck at 0.
+ *
+ * Nothing is lost: `sim.getError()` below is the authoritative source for this
+ * run's errors and warnings. With `spiceDebug.enabled` the lines still reach the
+ * console, as console.debug, which DevTools does not instrument.
+ */
+function muteEngineChatter() {
+  const real = console.error
+  console.error = (...args: unknown[]) => {
+    // the engine forwards one stderr line per call; anything else is ours
+    if (args.length === 1 && typeof args[0] === 'string') {
+      if (spiceDebug.enabled) console.debug(...args)
+      return
+    }
+    real.apply(console, args as Parameters<typeof console.error>)
+  }
+  return () => {
+    console.error = real
+  }
+}
+
 export function runNetlist(netlist: string): Promise<SpiceResult> {
   const run = async () => {
     const t0 = performance.now()
@@ -63,7 +92,13 @@ export function runNetlist(netlist: string): Promise<SpiceResult> {
       ? netlist
       : `${netlist}\n.end\n`
     sim.setNetList(text)
-    const result = await sim.runSim()
+    const unmute = muteEngineChatter()
+    let result
+    try {
+      result = await sim.runSim()
+    } finally {
+      unmute()
+    }
     const t2 = performance.now()
     // eecircuit-engine accumulates stderr across runs; only look at this run's lines.
     // Match the reference: only lines starting with Error/Warning count.
