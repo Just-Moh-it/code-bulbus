@@ -23,6 +23,9 @@ rsync -az --delete -e "ssh -i $KEY -o StrictHostKeyChecking=accept-new" \
 scp -i "$KEY" .env.production ubuntu@$HOST:/home/ubuntu/bulbus/.env.production
 # Data plane first: the build inlines VITE_ELECTRIC_URL, and drizzle-kit needs a live Postgres.
 $SSH 'sudo cp bulbus/deploy/bulbus-db.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now bulbus-db && sudo systemctl restart bulbus-db'
-$SSH 'set -e; cd bulbus; export PATH=$HOME/.bun/bin:$PATH; bun install --frozen-lockfile; set -a; . ./.env.production; set +a; bunx drizzle-kit push --force; bun run build'
+# `.output` is rsync-excluded, so a build interrupted half-way leaves artifacts
+# behind that the next build merges with — nitro then boots into a
+# "Export 'ssr_exports' is not defined" 500. Always build from clean.
+$SSH 'set -e; cd bulbus; export PATH=$HOME/.bun/bin:$PATH; bun install --frozen-lockfile; set -a; . ./.env.production; set +a; bunx drizzle-kit push --force; rm -rf .output; bun run build'
 $SSH 'sudo cp bulbus/deploy/Caddyfile /etc/caddy/Caddyfile && sudo cp bulbus/deploy/bulbus-app.service bulbus/deploy/bulbus-agents.service bulbus/deploy/bulbus-previews.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now bulbus-app bulbus-agents bulbus-previews && sudo systemctl restart bulbus-app bulbus-agents bulbus-previews caddy'
 echo "deployed to https://bulbus.mohitya.dev"
