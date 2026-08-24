@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 /* Streamdown's markdown components carry their Tailwind classes in its dist */
@@ -77,8 +77,9 @@
 }
 
 @theme inline {
-  /* the whole UI is monospace: one family, used for `font-sans` too */
+  /* the UI is monospace; headings stay on the display face (see @layer base) */
   --font-sans: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   /* one notch up from Tailwind's defaults — mono runs small and wide */
   --text-xs: 0.8125rem;
@@ -143,8 +144,11 @@
     letter-spacing: -0.011em;
   }
   h1,
-  h2 {
-    letter-spacing: -0.03em;
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-feature-settings: 'cv11', 'ss01';
+    letter-spacing: -0.02em;
   }
 }
 

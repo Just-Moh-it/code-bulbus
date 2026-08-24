@@ -140,7 +140,7 @@ function ErrorMarker({ part }: { part: Part }) {
 const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
   const sim = useSimulator()
   const scene = useThree((s) => s.scene)
-  const [, tick] = useState(0)
+  const [, setErrorCount] = useState(0)
 
   // scene-graph parenting mirrors the model; both lookups are observable
   const container = sim.objects.get(objectKey(part)) ?? null
@@ -154,12 +154,18 @@ const SimPartView = observer(function SimPartView({ part }: { part: Part }) {
     }
   }, [parentObj, container])
 
-  // rating errors are plain engine state; refresh every 30 ticks so markers appear
+  // Rating errors are plain engine state, so poll them every 30 ticks — but only
+  // store a *changed* count. React bails out of the render when the state value
+  // is identical, which keeps a running simulation at zero commits per second;
+  // blind ticking re-rendered every part's whole model subtree twice a second
+  // and made the tab unusable under React DevTools.
   useEffect(
     () =>
-      part.circuit.clock.onChange(
-        () => part.circuit.clock.tick % 30 === 0 && tick((n) => n + 1),
-      ),
+      part.circuit.clock.onChange(() => {
+        if (part.circuit.clock.tick % 30 !== 0) return
+        const n = part.errors.length
+        setErrorCount((prev) => (prev === n ? prev : n))
+      }),
     [part],
   )
 

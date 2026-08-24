@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import * as M from '#/editor/scene/models'
 import type {
   IntensityHandle,
@@ -22,9 +22,15 @@ import {
   TactileSwitch,
 } from '#/sim'
 
-/** Subscribe a callback to the playback clock for this part's circuit. */
+/**
+ * Subscribe a callback to the playback clock for this part's circuit. The
+ * callback is held in a ref so callers can pass an inline arrow without
+ * re-subscribing on every render.
+ */
 function useClock(part: Part, fn: () => void) {
-  useEffect(() => part.circuit.clock.onChange(fn), [part, fn])
+  const latest = useRef(fn)
+  latest.current = fn
+  useEffect(() => part.circuit.clock.onChange(() => latest.current()), [part])
 }
 
 function LedView({ part }: { part: Led }) {
@@ -80,8 +86,16 @@ function PotView({ part }: { part: Potentiometer }) {
   return <M.PotentiometerModel ref={ref} position0={part.wiper} />
 }
 
-/** Simulator-side model view: live values drive emissives / rotation / the switch cap. */
-export function SimPartModel({ part }: { part: Part }) {
+/**
+ * Simulator-side model view: live values drive emissives / rotation / the switch
+ * cap. Memoised on `part` (stable for the run) so a parent re-render never
+ * rebuilds the GLB subtree — R3F would diff every mesh prop in it.
+ */
+export const SimPartModel = memo(function SimPartModel({
+  part,
+}: {
+  part: Part
+}) {
   if (part instanceof Led) return <LedView part={part} />
   if (part instanceof ArduinoUno) return <ArduinoView part={part} />
   if (part instanceof Motor) return <MotorView part={part} />
@@ -96,4 +110,4 @@ export function SimPartModel({ part }: { part: Part }) {
   if (part instanceof Potentiometer) return <PotView part={part} />
   const Model = stampModels[part.type]
   return <Model />
-}
+})

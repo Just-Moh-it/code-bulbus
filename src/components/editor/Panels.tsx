@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { ChevronLeft } from 'lucide-react'
 import { Button } from '#/components/ui/button'
@@ -395,8 +395,13 @@ export const SimLeftPanel = observer(function SimLeftPanel({
   simulator: Simulator
 }) {
   const part = simulator.selection
-  const [, force] = useForceTick(simulator, 30)
-  void force
+  // Arduino serial output is plain engine state; re-render only when it grows.
+  usePolledValue(simulator, 30, () =>
+    simulator.circuit.parts.reduce(
+      (n, p) => n + (p instanceof ArduinoUno ? p.logs.length : 0),
+      0,
+    ),
+  )
   return (
     <Island
       resizeEdge="right"
@@ -437,15 +442,28 @@ export const SimLeftPanel = observer(function SimLeftPanel({
   )
 })
 
-/** Re-render every N clock ticks (logs are plain strings on the engine part). */
-function useForceTick(simulator: Simulator, every: number) {
-  const s = useState(0)
+/**
+ * Poll a plain (non-observable) engine value every N clock ticks and re-render
+ * only when it changed — React bails out when the state is identical, so an
+ * idle simulation costs no commits. Blind ticking is what made the tab crawl
+ * with React DevTools attached: every tick re-rendered the panel tree.
+ */
+function usePolledValue<T>(
+  simulator: Simulator,
+  every: number,
+  read: () => T,
+): T {
+  const [value, setValue] = useState(read)
+  const latest = useRef(read)
+  latest.current = read
   useEffect(
     () =>
       simulator.circuit.clock.onChange(() => {
-        if (simulator.circuit.clock.tick % every === 0) s[1]((n) => n + 1)
+        if (simulator.circuit.clock.tick % every !== 0) return
+        const next = latest.current()
+        setValue((prev) => (prev === next ? prev : next))
       }),
-    [simulator, every, s],
+    [simulator, every],
   )
-  return s
+  return value
 }
