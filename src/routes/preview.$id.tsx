@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
+import { useProjectSnapshot } from '#/lib/collections'
 import { EditorProject, fitCameraToObjects } from '#/editor/models'
 import { ProjectCanvas, CANVAS_BG } from '#/editor/scene/ProjectCanvas'
 import type { ProjectJSON } from '#/sim/types'
@@ -23,7 +22,7 @@ export const Route = createFileRoute('/preview/$id')({
 
 function PreviewPage() {
   const { id } = Route.useParams()
-  const server = useQuery(api.circuit.get, { projectId: id })
+  const server = useProjectSnapshot(id)
   const [json, setJson] = useState<ProjectJSON | null>(null)
   useEffect(() => {
     if (server && !json) setJson({ ...server.project, circuit: server.circuit })

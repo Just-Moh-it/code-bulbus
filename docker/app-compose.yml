@@ -1,0 +1,49 @@
+# App data plane: Postgres (logical replication) + Electric.
+#
+#   bun run db:up     # start          bun run db:down   # stop
+#   bun run db:push   # drizzle-kit push (schema → database)
+#
+# Ports are offset from the Electric Agents runtime (5432/5433/4437) so both
+# stacks can run side by side on one machine.
+name: bulbus-app
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bulbus
+    ports:
+      - '5442:5432'
+    # Electric replicates the tables it serves, so the WAL must be logical.
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d bulbus']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  electric:
+    image: electricsql/electric:latest
+    environment:
+      DATABASE_URL: postgres://postgres:password@postgres:5432/bulbus?sslmode=disable
+      # dev only: no shape auth, no gatekeeper
+      ELECTRIC_INSECURE: 'true'
+    ports:
+      - '5444:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

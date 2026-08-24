@@ -1,11 +1,11 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
 import { ArrowRight, Plus, Thermometer } from 'lucide-react'
-import { api } from '../../convex/_generated/api'
+import { useProjectList } from '#/lib/collections'
 import { Logo } from '#/components/editor/Navbar'
 import { Button } from '#/components/ui/button'
 
-export const Route = createFileRoute('/')({ component: Home })
+// The grids read Electric-backed collections, which need `window`.
+export const Route = createFileRoute('/')({ component: Home, ssr: false })
 
 export function SiteHeader() {
   return (
@@ -99,7 +99,7 @@ export function ProjectGrid({
 
 /** Landing: the hero plus the curated (public showcase) projects, so visitors land on good circuits. */
 function Home() {
-  const projects = useQuery(api.projects.list, { isPublic: true })
+  const projects = useProjectList({ isPublic: true })
   const navigate = useNavigate()
   const open = (template: 'blank' | 'thermostat') =>
     void navigate({

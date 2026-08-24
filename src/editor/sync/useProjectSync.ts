@@ -1,18 +1,22 @@
 /**
- * Two-way sync between an `EditorProject` and Convex, Figma-style:
+ * Two-way sync between an `EditorProject` and the server, Figma-style:
  *
- *   server rows ──(useQuery)──▶ circuit.loadJSON(snapshot, skip)   (inbound)
- *   model change ──(reaction)──▶ diff(lastSent, now) ──▶ circuit.apply (outbound, ≈150 ms)
+ *   Electric rows ──(live query)──▶ circuit.loadJSON(snapshot, skip)   (inbound)
+ *   model change ──(reaction)──▶ diff(lastSent, now) ──▶ /api/data/tx (outbound, ≈150 ms)
  *
  * `lastSent` is the last snapshot we know the server holds. Inbound snapshots
  * skip ids that are held (dragging) or dirty (diff against lastSent is not
  * empty), and advance `lastSent` for everything they did apply so our own
  * echo — and other writers' changes — are never sent back.
+ *
+ * Local-first: each flush applies its ops to the parts/wires collections
+ * optimistically inside one TanStack DB transaction, POSTs them, and waits for
+ * Electric to replay the returned Postgres txid before dropping the optimistic
+ * state — so the picture never flickers back through the pre-edit rows.
  */
 import { useEffect, useRef } from 'react'
-import { useMutation } from 'convex/react'
+import { createTransaction } from '@tanstack/react-db'
 import { reaction } from 'mobx'
-import { api } from '../../../convex/_generated/api'
 import {
   applyToSnapshot,
   diffCircuit,
@@ -20,24 +24,75 @@ import {
   opsIds,
   stable,
 } from './diff'
+import { applyTx } from '#/lib/api'
+import { partsCollection, wiresCollection } from '#/lib/collections'
+import type { CircuitOps } from './diff'
 import type { EditorProject } from '#/editor/models'
-import type { CircuitJSON } from '#/sim/types'
+import type { CameraJSON, CircuitJSON } from '#/sim/types'
 
 export const FLUSH_MS = 150
 const META_FLUSH_MS = 500
+/** Electric usually replays a write within a few hundred ms; past this we stop waiting. */
+const TXID_TIMEOUT_MS = 5000
 
 export interface ServerSnapshot {
   circuit: CircuitJSON
   /** rows never written: `lastSent` starts empty so the first flush creates them */
-  legacy: boolean
+  legacy?: boolean
+}
+
+/**
+ * Apply `ops` to the project's collections optimistically and persist them in
+ * one transaction. Resolves once Postgres has the write and Electric has
+ * replayed it into the collections we touched.
+ */
+async function pushOps(projectId: string, ops: CircuitOps) {
+  if (isEmptyOps(ops)) return
+  const parts = partsCollection(projectId)
+  const wires = wiresCollection(projectId)
+  const touchedParts = ops.parts.length > 0 || ops.removeParts.length > 0
+  const touchedWires = ops.wires.length > 0 || ops.removeWires.length > 0
+  const tx = createTransaction({
+    mutationFn: async () => {
+      const { txid } = await applyTx({ projectId, ...ops })
+      const id = Number(txid)
+      // Best effort: if the shape never reports the txid we still committed —
+      // the stream will deliver server truth on its own.
+      const wait = async (
+        collection: typeof parts | typeof wires,
+        touched: boolean,
+      ) => {
+        if (!touched) return
+        try {
+          await collection.utils.awaitTxId(id, TXID_TIMEOUT_MS)
+        } catch (e) {
+          console.warn('[sync] txid not observed', txid, e)
+        }
+      }
+      await Promise.all([wait(parts, touchedParts), wait(wires, touchedWires)])
+    },
+  })
+  tx.mutate(() => {
+    for (const id of ops.removeParts) if (parts.has(id)) parts.delete(id)
+    for (const id of ops.removeWires) if (wires.has(id)) wires.delete(id)
+    for (const data of ops.parts) {
+      if (parts.has(data.id))
+        parts.update(data.id, (draft) => void (draft.data = data))
+      else parts.insert({ project_id: projectId, id: data.id, data })
+    }
+    for (const data of ops.wires) {
+      if (wires.has(data.id))
+        wires.update(data.id, (draft) => void (draft.data = data))
+      else wires.insert({ project_id: projectId, id: data.id, data })
+    }
+  })
+  await tx.isPersisted.promise
 }
 
 export function useProjectSync(
   project: EditorProject | null,
   server: ServerSnapshot | null | undefined,
 ) {
-  const apply = useMutation(api.circuit.apply)
-  const update = useMutation(api.projects.update)
   /** Last snapshot the server is known to hold, for the project it belongs to. */
   const lastSent = useRef<{
     project: EditorProject
@@ -73,7 +128,7 @@ export function useProjectSync(
         })
       inFlight.current = true
       try {
-        await apply({ projectId: project.id, ...ops })
+        await pushOps(project.id, ops)
         sent.circuit = applyToSnapshot(sent.circuit, ops)
       } catch (e) {
         console.error('sync flush failed', e)
@@ -92,11 +147,17 @@ export function useProjectSync(
     )
     const stopMeta = reaction(
       () => stable({ name: project.name, camera: project.toJSON().camera }),
-      (meta) =>
-        void update({
-          id: project.id,
-          ...(JSON.parse(meta) as { name: string; camera: unknown }),
-        }),
+      (meta) => {
+        const patch = JSON.parse(meta) as {
+          name: string
+          camera?: CameraJSON
+        }
+        void applyTx({
+          projectId: project.id,
+          name: patch.name,
+          camera: patch.camera ?? null,
+        }).catch((e: unknown) => console.error('sync meta failed', e))
+      },
       { delay: META_FLUSH_MS },
     )
     return () => {
@@ -105,19 +166,21 @@ export function useProjectSync(
       if (timer.current) clearTimeout(timer.current)
       timer.current = null
     }
-  }, [project, apply, update])
+  }, [project])
 
   // inbound
   useEffect(() => {
     if (!project || !server) return
     if (lastSent.current?.project !== project) {
-      // first snapshot: the model was built from it. A legacy blob has no rows
-      // yet, so write them now; from then on only diffs travel.
+      // first snapshot: the model was built from it. A project whose rows were
+      // never written has none, so write them now; from then on only diffs travel.
       const now = project.circuit.toJSON()
       lastSent.current = { project, circuit: now }
       if (server.legacy) {
         const ops = diffCircuit({ parts: [], wires: [] }, now)
-        void apply({ projectId: project.id, ...ops })
+        void pushOps(project.id, ops).catch((e: unknown) =>
+          console.error('sync seed failed', e),
+        )
       }
       return
     }
