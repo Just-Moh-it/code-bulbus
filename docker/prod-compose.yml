@@ -4,6 +4,10 @@
 # Differences from the dev file: ports bind to loopback only — Caddy is the
 # single public door — the password comes from the environment, and the
 # containers come back on their own after a reboot or a crash.
+#
+# `!override` matters: Compose *appends* to a sequence when merging files, so
+# without it each service also inherits the dev 0.0.0.0 mapping and the second
+# bind of the same port fails with "address already in use".
 name: bulbus-app
 
 services:
@@ -11,12 +15,12 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
-    ports:
+    ports: !override
       - '127.0.0.1:5442:5432'
 
   electric:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}@postgres:5432/bulbus?sslmode=disable
-    ports:
+    ports: !override
       - '127.0.0.1:5444:3000'
