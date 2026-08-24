@@ -3,6 +3,7 @@ import { useQuery } from 'convex/react'
 import { ArrowRight, Plus, Thermometer } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import { Logo } from '#/components/editor/Navbar'
+import { UserMenu } from '#/components/auth/UserMenu'
 import { Button } from '#/components/ui/button'
 
 export const Route = createFileRoute('/')({ component: Home })
@@ -22,6 +23,7 @@ export function SiteHeader() {
           Projects
         </Link>
       </div>
+      <UserMenu className="ml-auto" />
     </nav>
   )
 }

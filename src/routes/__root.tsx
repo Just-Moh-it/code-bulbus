@@ -2,6 +2,7 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
 import ConvexProvider from '../integrations/convex/provider'
 import { Toaster } from 'sonner'
+import { OneTapPrompt } from '#/components/auth/OneTapPrompt'
 import { TooltipProvider } from '#/components/ui/tooltip'
 
 import appCss from '../styles.css?url'
@@ -39,6 +40,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <ConvexProvider>
           <TooltipProvider>{children}</TooltipProvider>
+          {/* Client-only by construction: renders null, acts only from effects. */}
+          <OneTapPrompt />
           <Toaster position="bottom-right" richColors />
         </ConvexProvider>
         <Scripts />
