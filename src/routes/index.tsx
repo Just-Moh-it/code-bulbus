@@ -2,6 +2,7 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, Plus, Thermometer } from 'lucide-react'
 import { useProjectList } from '#/lib/collections'
 import { Logo } from '#/components/editor/Navbar'
+import { UserMenu } from '#/components/auth/UserMenu'
 import { Button } from '#/components/ui/button'
 
 // The grids read Electric-backed collections, which need `window`.
@@ -22,6 +23,7 @@ export function SiteHeader() {
           Projects
         </Link>
       </div>
+      <UserMenu className="ml-auto" />
     </nav>
   )
 }

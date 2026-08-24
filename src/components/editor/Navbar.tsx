@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '#/components/ui/dialog'
+import { UserMenu } from '#/components/auth/UserMenu'
 import { allArduinosCompiled } from '#/lib/projects'
 import type { EditorProject } from '#/editor/models'
 import type { Simulator } from '#/simulator/model'
@@ -212,6 +213,8 @@ export const EditorTopBar = observer(function EditorTopBar({
           </div>
         </>
       )}
+      <span className="h-5 w-px bg-border" />
+      <UserMenu />
     </div>
   )
 })

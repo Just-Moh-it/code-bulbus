@@ -1,6 +1,7 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
 import { Toaster } from 'sonner'
+import { OneTapPrompt } from '#/components/auth/OneTapPrompt'
 import { TooltipProvider } from '#/components/ui/tooltip'
 
 import appCss from '../styles.css?url'
@@ -36,7 +37,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
+<TooltipProvider>{children}</TooltipProvider>
+        {/* Client-only by construction: renders null, acts only from effects. */}
+        <OneTapPrompt />
         <Toaster position="bottom-right" richColors />
         <Scripts />
       </body>
