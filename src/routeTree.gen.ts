@@ -20,6 +20,7 @@ import { Route as ApiAgentsDeleteRouteImport } from './routes/api/agents/delete'
 import { Route as ApiAgentsSendRouteImport } from './routes/api/agents/send'
 import { Route as ApiAgentsSpawnRouteImport } from './routes/api/agents/spawn'
 import { Route as ApiAgentsStopRouteImport } from './routes/api/agents/stop'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const ApiAgentsStopRoute = ApiAgentsStopRouteImport.update({
   path: '/api/agents/stop',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/api/agents/send': typeof ApiAgentsSendRoute
   '/api/agents/spawn': typeof ApiAgentsSpawnRoute
   '/api/agents/stop': typeof ApiAgentsStopRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/api/agents/send'
     | '/api/agents/spawn'
     | '/api/agents/stop'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   ApiAgentsSendRoute: typeof ApiAgentsSendRoute
   ApiAgentsSpawnRoute: typeof ApiAgentsSpawnRoute
   ApiAgentsStopRoute: typeof ApiAgentsStopRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsStopRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,16 +287,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentsSendRoute: ApiAgentsSendRoute,
   ApiAgentsSpawnRoute: ApiAgentsSpawnRoute,
   ApiAgentsStopRoute: ApiAgentsStopRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
