@@ -223,6 +223,12 @@ bulbus.mohitya.dev (Vercel DNS A → Elastic IP 44.234.232.233, us-west-2)
 - Convex is the shared dev deployment (`VITE_CONVEX_URL`); switch to a prod
   deployment with `bunx convex deploy` when needed.
 
+There is also a Cloudflare path: `CF_BUILD=1` swaps nitro for
+`@cloudflare/vite-plugin` and `bun run deploy` ships the app as a Worker with
+static assets (Workers, not Pages — Pages is no longer the full-stack target).
+`arduino-cli`, the agents server and Electric still need the VM. See
+`docs/DEPLOY-CF.md`.
+
 ## Known deviations from the reference
 
 - Placement snaps to terminals immediately (`Stamp.tsx`); the reference only
