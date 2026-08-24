@@ -148,6 +148,27 @@ const BOARD_MATS = [
   'Led_Glass_Green.010',
 ]
 
+/**
+ * The silkscreen layers are separate meshes coplanar with the PCB face, so the
+ * depth test can't order them and the pin labels flicker as the camera moves.
+ * Bias them toward the camera (the standard decal fix) and draw them after the
+ * board.
+ */
+const OVERLAY_MATS = new Set([
+  'TextureTopOverlay.010',
+  'TextureBottomOverlay.010',
+])
+const overlayProps = (m: string) =>
+  OVERLAY_MATS.has(m)
+    ? ({
+        renderOrder: 1,
+        'material-polygonOffset': true,
+        'material-polygonOffsetFactor': -4,
+        'material-polygonOffsetUnits': -4,
+        'material-depthWrite': false,
+      } as const)
+    : {}
+
 const prim = (node: string, i: number) => (i === 0 ? node : `${node}_${i}`)
 
 /** Arduino Uno board. Exposes setIntensity() for the on-board pin-13 LED. */
@@ -188,6 +209,7 @@ export const ArduinoUnoModel = forwardRef<IntensityHandle, Props>(
                   material-color={
                     m === 'Aluminium_Brushed.010' ? 'white' : undefined
                   }
+                  {...overlayProps(m)}
                 />
               ))}
             </group>
