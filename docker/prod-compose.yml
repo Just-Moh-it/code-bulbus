@@ -1,0 +1,22 @@
+# Production overlay for the EC2 box: `docker compose -f docker/app-compose.yml -f docker/prod-compose.yml up -d`
+# (that is what `bulbus-db.service` runs).
+#
+# Differences from the dev file: ports bind to loopback only — Caddy is the
+# single public door — the password comes from the environment, and the
+# containers come back on their own after a reboot or a crash.
+name: bulbus-app
+
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+    ports:
+      - '127.0.0.1:5442:5432'
+
+  electric:
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}@postgres:5432/bulbus?sslmode=disable
+    ports:
+      - '127.0.0.1:5444:3000'

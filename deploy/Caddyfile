@@ -1,10 +1,17 @@
 # Production front on the EC2 box: auto-HTTPS for bulbus.mohitya.dev.
-#   /agents/*  -> electric coordinator (docker, :4437)
+#   /agents/*  -> electric agents coordinator (docker, :4437)
+#   /sync/*    -> electric sync service for TanStack DB shapes (docker, :5444)
 #   /*         -> the built TanStack Start app (node, :3000)
 bulbus.mohitya.dev {
 	encode zstd gzip
 	handle_path /agents/* {
 		reverse_proxy localhost:4437
+	}
+	# Shape polling. Same origin as the app, so it rides HTTP/2 (the browser's
+	# 6-connection-per-origin limit under HTTP/1.1 would stall multiple shapes)
+	# and needs no CORS.
+	handle_path /sync/* {
+		reverse_proxy localhost:5444
 	}
 	handle {
 		reverse_proxy localhost:3000

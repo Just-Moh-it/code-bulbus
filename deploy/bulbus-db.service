@@ -1,0 +1,16 @@
+[Unit]
+Description=bulbus data plane (Postgres + Electric, docker compose)
+Requires=docker.service
+After=docker.service network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=ubuntu
+WorkingDirectory=/home/ubuntu/bulbus
+EnvironmentFile=/home/ubuntu/bulbus/.env.production
+ExecStart=/usr/bin/docker compose -f docker/app-compose.yml -f docker/prod-compose.yml up -d --wait
+ExecStop=/usr/bin/docker compose -f docker/app-compose.yml -f docker/prod-compose.yml stop
+
+[Install]
+WantedBy=multi-user.target

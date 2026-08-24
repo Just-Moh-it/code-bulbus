@@ -26,10 +26,10 @@ public/         GLB models + palette thumbnails (recovered from the Wayback Mach
 There are deliberately two object trees that both serialise to the same
 `ProjectJSON` (`src/sim/types.ts`):
 
-| Layer | Classes | Concern |
-|---|---|---|
+| Layer                        | Classes                                    | Concern                                               |
+| ---------------------------- | ------------------------------------------ | ----------------------------------------------------- |
 | Editor (`src/editor/models`) | `EditorProject/Circuit/Part/Wire/Terminal` | placement, parenting, snapping, undo/redo, properties |
-| Engine (`src/sim`) | `Circuit/Part/Wire/Terminal` | netlists, ngspice, avr8js, playback clock |
+| Engine (`src/sim`)           | `Circuit/Part/Wire/Terminal`               | netlists, ngspice, avr8js, playback clock             |
 
 `Simulate` does `new Simulator(project.toJSON())` — the engine is rebuilt from
 JSON every run and never shares objects with the editor. Keep it that way.
@@ -49,7 +49,7 @@ JSON every run and never shares objects with the editor. Keep it that way.
 
 - **The model is the single source of truth for transforms.** `EditorPart.worldTransform`
   composes position/rotation through the parent chain; wires, snapping and anything
-  else that must agree with the model read *that*, never a three.js object. The scene
+  else that must agree with the model read _that_, never a three.js object. The scene
   graph only mirrors the model (immediately while dragging, spring-animated for
   programmatic moves), so it can never be "between" states that other views depend on.
 - **three.js objects never live in models.** The engine (`src/sim`) has no scene
@@ -63,8 +63,8 @@ JSON every run and never shares objects with the editor. Keep it that way.
 ## Invariants that have bitten us
 
 1. **GLB node names.** three's GLTFLoader names a single-primitive mesh after its
-   *node* (`pinheaderMetal_C_003_DMSH.001` → `pinheaderMetal_C_003_DMSH001`) but a
-   multi-primitive mesh after its *mesh* (`Object_2.010` → `Object_2010`,
+   _node_ (`pinheaderMetal_C_003_DMSH.001` → `pinheaderMetal_C_003_DMSH001`) but a
+   multi-primitive mesh after its _mesh_ (`Object_2.010` → `Object_2010`,
    `Object_2010_1`, …; `Mesh`, `Mesh_1`; `Circle003`, `Circle003_1`). Dots and
    spaces are stripped. Dump names with the python snippet in git history before
    guessing.
@@ -74,7 +74,7 @@ JSON every run and never shares objects with the editor. Keep it that way.
    observable flips → the `observer` re-renders → infinite loop. Setters also
    no-op when the value is unchanged.
 3. **Fit after load.** `ScaledGroup` measures its children; a model that hasn't
-   resolved yet measures 0. Keep `<Suspense>` *outside* `ScaledGroup`, never
+   resolved yet measures 0. Keep `<Suspense>` _outside_ `ScaledGroup`, never
    inside it. `ScaledGroup` retries each frame until it sees geometry.
 4. **Never pass a pass-less `EffectComposer`** — it requires children. The editor
    has no post-processing; only the simulator adds `Bloom`.
@@ -118,7 +118,7 @@ EditorProject ──reaction──▶ diff(lastSent, now) ──▶ circuit.appl
 ```
 
 - **Granularity is the entity.** `circuit.apply` upserts/removes whole parts
-  and wires; the last writer wins *per entity*, so a human and N agents editing
+  and wires; the last writer wins _per entity_, so a human and N agents editing
   different parts never conflict. Same-entity races are resolved LWW — good
   enough for always-online collaborators; the row-per-entity shape is what a
   CRDT would need later anyway.
@@ -180,7 +180,7 @@ browser ──observe (read-only)──▶ coordinator :4437 ◀──webhook wa
   bodies; `get_project`/`simulate` report nets, floating pins and `problems`.
   Nothing the model says can disagree with the validation because there is no
   geometry for it to get wrong. Tests: `agents/layout.test.ts`.
-- The reference grammar the tools *print* is the grammar they *accept*:
+- The reference grammar the tools _print_ is the grammar they _accept_:
   `type:id.pin`, `type.id.pin`, `id.pin`, `type.pin`, plus per-type aliases
   (555 datasheet numbers, `+`/`-` on capacitors, `anode`/`cathode` on LEDs,
   switch sides `a`/`b`). Tools are bound to their project — no `projectId`
@@ -201,33 +201,36 @@ browser ──observe (read-only)──▶ coordinator :4437 ◀──webhook wa
 
 ## Deployment (one EC2 box)
 
-Everything that needs a real machine — `arduino-cli`, the Electric Agents
-coordinator (docker), the agent server — lives on one Ubuntu box with the
-built app, behind Caddy auto-HTTPS:
+Everything runs on one Ubuntu box behind Caddy auto-HTTPS — the data plane
+included. There is no serverless split: `arduino-cli`, the Electric Agents
+coordinator, the agent server, Postgres and the Electric sync service are all
+local to each other, which is why a shape poll or a compile is a loopback hop.
 
 ```
 bulbus.mohitya.dev (Vercel DNS A → Elastic IP 44.234.232.233, us-west-2)
-  caddy :443 ── /agents/* ─▶ electric coordinator :4437 (docker: postgres+electric+coordinator)
-             └─ /*        ─▶ node .output/server/index.mjs :3000 (TanStack Start; compile route runs arduino-cli)
+  caddy :443 ── /agents/* ─▶ electric agents coordinator :4437 (docker)
+             ├─ /sync/*   ─▶ electric sync service :5444 (docker) → postgres :5442 (docker)
+             └─ /*        ─▶ node .output/server/index.mjs :3000 (TanStack Start;
+                              compile route runs arduino-cli, /api/data/* writes to postgres)
   bun agents/server.ts :4440  ◀── webhook wakes from the coordinator
 ```
 
-- `deploy/deploy.sh <host>` rsyncs the tree, installs, builds with
-  `.env.production` (gitignored; keys + model config), installs the systemd
-  units (`bulbus-app`, `bulbus-agents`) and the Caddyfile.
+- `deploy/deploy.sh <host>` rsyncs the tree, brings up the data plane
+  (`bulbus-db`), pushes the drizzle schema, builds with `.env.production`
+  (gitignored), then installs the systemd units (`bulbus-app`,
+  `bulbus-agents`, `bulbus-previews`) and the Caddyfile.
+- Postgres and Electric run from `docker/app-compose.yml` plus
+  `docker/prod-compose.yml`, which binds both to loopback (Caddy is the only
+  public door) and takes `POSTGRES_PASSWORD` from the environment.
+- `VITE_ELECTRIC_URL` is inlined into the client bundle at build time, so it
+  must be `https://bulbus.mohitya.dev/sync` in `.env.production` — same origin
+  as the app, which buys HTTP/2 (shape polls would otherwise hit the browser's
+  6-connection HTTP/1.1 limit) and avoids CORS entirely.
 - First boot is scripted in the EC2 user-data (docker, node 22, bun, caddy,
   arduino-cli + `arduino:avr` + LiquidCrystal libs). Start the coordinator
   once with `bunx electric-ax agents start` on the box.
-- Off-localhost the browser reaches the coordinator at
-  `${origin}/agents` (`ChatThread.tsx`), so one hostname serves everything.
-- Convex is the shared dev deployment (`VITE_CONVEX_URL`); switch to a prod
-  deployment with `bunx convex deploy` when needed.
-
-There is also a Cloudflare path: `CF_BUILD=1` swaps nitro for
-`@cloudflare/vite-plugin` and `bun run deploy` ships the app as a Worker with
-static assets (Workers, not Pages — Pages is no longer the full-stack target).
-`arduino-cli`, the agents server and Electric still need the VM. See
-`docs/DEPLOY-CF.md`.
+- Off-localhost the browser reaches the coordinator at `${origin}/agents`
+  (`ChatThread.tsx`), so one hostname serves everything.
 
 ## Known deviations from the reference
 

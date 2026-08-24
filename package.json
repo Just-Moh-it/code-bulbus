@@ -10,10 +10,6 @@
     "generate-routes": "tsr generate",
     "build": "vite build",
     "preview": "vite preview",
-    "build:cf": "CF_BUILD=1 vite build",
-    "preview:cf": "CF_BUILD=1 vite build && vite preview",
-    "deploy": "CF_BUILD=1 vite build && wrangler deploy",
-    "cf:typegen": "wrangler types",
     "lint": "eslint",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
@@ -87,7 +83,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.53.1",
     "@opentelemetry/api": "^1.9.1",
     "@tanstack/devtools-event-client": "latest",
     "@tanstack/devtools-vite": "latest",
@@ -104,8 +99,7 @@
     "playwright-core": "^1.62.1",
     "prettier": "^3.8.1",
     "typescript": "^6.0.2",
-    "vite": "^8.0.0",
-    "wrangler": "^4.125.0"
+    "vite": "^8.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
