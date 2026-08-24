@@ -83,6 +83,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.4.2",
     "@opentelemetry/api": "^1.9.1",
     "@tanstack/devtools-event-client": "latest",
     "@tanstack/devtools-vite": "latest",

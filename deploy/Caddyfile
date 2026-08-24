@@ -13,6 +13,11 @@ bulbus.mohitya.dev {
 	handle_path /sync/* {
 		reverse_proxy localhost:5444
 	}
+	# 3D models and the Draco decoder are content-addressed by hand (their
+	# contents change only when we replace the file), so let browsers keep them:
+	# a repeat visitor never re-downloads the 2.5 MB Arduino.
+	@models path *.glb /draco/*
+	header @models Cache-Control "public, max-age=604800, immutable"
 	handle {
 		reverse_proxy localhost:3000
 	}

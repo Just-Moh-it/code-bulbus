@@ -137,6 +137,30 @@ EditorProject ──reaction──▶ diff(lastSent, now) ──▶ circuit.appl
   `circuit.get` serves it with `legacy: true` and the first client to open it
   writes the rows. The blob is never written again.
 
+## Model loading
+
+GLBs are the heaviest thing the app ships (arduino-uno 2.5 MB, rpi 1.7 MB) and
+they are already Draco-compressed — re-compressing (meshopt, simplify+quantize)
+saves ~10 % and costs fidelity, so don't. What actually cost seconds:
+
+1. **The Draco decoder came from gstatic.** drei's default decoder path is a
+   Google CDN, so the first compressed model waited on a cross-origin fetch.
+   It is self-hosted in `public/draco/` and set in `src/lib/gltf-setup.ts`,
+   which must be imported *statically and first* — drei keys its cache on the
+   loader config, so setting the path late re-downloads every model.
+2. **Loading started after the project data resolved.** `warmModels()`
+   (`src/lib/models-warmup.ts`, mounted by the root route) warms the common
+   models on idle from any page, landing included, and `<link rel=prefetch>`
+   in the root head starts the breadboard/Arduino with the document.
+3. **The scene revealed piece by piece.** Parts mount behind their own
+   Suspense, so `ProjectCanvas` gates the fade-in on drei's `useProgress`
+   going idle (250 ms floor, 12 s ceiling) and preloads only the types the
+   circuit uses.
+
+Measured cold, landing → project open: scene complete in ~1.2 s, down from
+~5–6 s of staged pop-in. Production sets `Cache-Control: immutable` on
+`*.glb` and `/draco/*` (deploy/Caddyfile).
+
 ## Preview thumbnails
 
 Project cards show a render of the actual circuit, produced out of process:

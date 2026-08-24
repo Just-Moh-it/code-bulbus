@@ -1,3 +1,4 @@
+import '#/lib/gltf-setup'
 import { useGLTF } from '@react-three/drei'
 import type { PartType } from '#/sim/types'
 
