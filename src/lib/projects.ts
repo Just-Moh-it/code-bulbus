@@ -38,7 +38,7 @@ export const PALETTE: { label: string; stampType: string; img: string }[] = [
     img: '/parts/breadboard.webp',
   },
   { label: 'Battery', stampType: 'battery', img: '/parts/battery.webp' },
-  { label: '16x2 LCD', stampType: 'lcd1602', img: '/parts/timer.webp' },
+  { label: '16x2 LCD', stampType: 'lcd1602', img: '/parts/lcd1602.webp' },
   {
     label: 'Potentiometer',
     stampType: 'potentiometer',
@@ -52,7 +52,7 @@ export const PALETTE: { label: string; stampType: string; img: string }[] = [
   {
     label: '16x2 LCD (I2C)',
     stampType: 'lcd1602-i2c',
-    img: '/parts/timer.webp',
+    img: '/parts/lcd1602-i2c.webp',
   },
 ]
 
