@@ -151,8 +151,9 @@ const BOARD_MATS = [
 /**
  * The silkscreen layers are separate meshes coplanar with the PCB face, so the
  * depth test can't order them and the pin labels flicker as the camera moves.
- * Bias them toward the camera (the standard decal fix) and draw them after the
- * board.
+ * Bias them toward the camera — the standard decal fix. They must keep writing
+ * depth: without it the underside silkscreen draws through the board (mirrored
+ * text on the top face).
  */
 const OVERLAY_MATS = new Set([
   'TextureTopOverlay.010',
@@ -161,11 +162,9 @@ const OVERLAY_MATS = new Set([
 const overlayProps = (m: string) =>
   OVERLAY_MATS.has(m)
     ? ({
-        renderOrder: 1,
         'material-polygonOffset': true,
-        'material-polygonOffsetFactor': -4,
-        'material-polygonOffsetUnits': -4,
-        'material-depthWrite': false,
+        'material-polygonOffsetFactor': -1,
+        'material-polygonOffsetUnits': -1,
       } as const)
     : {}
 
