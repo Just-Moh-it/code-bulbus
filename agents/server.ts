@@ -66,12 +66,15 @@ function resolveModel(): Model<Api> | string {
   console.warn(
     `model ${MODEL_ID} is not in pi-ai's catalogue; using ${like.id}'s settings with the new id`,
   )
-  // a newer model is never smaller than its sibling; don't let a mini's limits clip it
+  // A newer model is never smaller than its sibling: don't let a mini's limits
+  // clip it, and assume vision — pi-ai DROPS image blocks when `input` omits
+  // "image", which silently turns uploaded images into "I can't see any image".
   return {
     ...like,
     id: MODEL_ID,
     name: MODEL_ID,
     reasoning: true,
+    input: ['text', 'image'] as typeof like.input,
     contextWindow: Math.max(like.contextWindow, 200_000),
     maxTokens: Math.max(like.maxTokens, 32_000),
   }
