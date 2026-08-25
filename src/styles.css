@@ -196,3 +196,19 @@
     background-color: var(--card);
   }
 }
+
+/* Canvas veil: while a scene's models stream in the canvas stays visible and a
+   white sheet breathes over it, so the editor reads as loading rather than as
+   an empty page. */
+@keyframes canvas-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@utility animate-canvas-pulse {
+  animation: canvas-pulse 1.6s ease-in-out infinite;
+}

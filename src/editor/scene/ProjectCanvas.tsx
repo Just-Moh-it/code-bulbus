@@ -1,8 +1,8 @@
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import type * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
-import { AdaptiveDpr, OrbitControls, useProgress } from '@react-three/drei'
+import { AdaptiveDpr, OrbitControls, useGLTF } from '@react-three/drei'
 import type { EditorProject } from '#/editor/models'
 import { ProjectContext, useProject } from './context'
 import { PartContainer } from './PartContainer'
@@ -10,7 +10,7 @@ import { EditorPartModel } from './PartModel'
 import { WireMesh } from './WireMesh'
 import { Stamp } from './Stamp'
 import { Hotkeys } from './Hotkeys'
-import { preloadModels } from './models'
+import { modelUrlsFor } from './models'
 
 export const CANVAS_BG = '#F3F5F9'
 
@@ -31,36 +31,46 @@ const CameraSync = observer(function CameraSync() {
 })
 
 /**
- * True once every GLB the scene asked for has landed (drei's loader store),
- * with a floor so the first paint is never a flash and a ceiling so a failed
- * model still reveals the circuit. Parts mount behind their own Suspense, so
- * without this gate the scene pops in piece by piece — the Arduino, at 2.5 MB,
- * arriving seconds after the wires.
+ * White sheet over the canvas while its models stream in. The canvas itself
+ * stays visible underneath, so a cold load reads as loading rather than as a
+ * blank page.
  */
-function useSceneReady(minMs = 250, maxMs = 12_000) {
-  const { active, loaded, total } = useProgress()
-  const [floor, setFloor] = useState(false)
-  const [ceiling, setCeiling] = useState(false)
-  useEffect(() => {
-    const a = setTimeout(() => setFloor(true), minMs)
-    const b = setTimeout(() => setCeiling(true), maxMs)
-    return () => {
-      clearTimeout(a)
-      clearTimeout(b)
-    }
-  }, [minMs, maxMs])
-  const loadersIdle = !active && total > 0 && loaded >= total
-  return ceiling || (floor && loadersIdle)
+function LoadingVeil({ done }: { done?: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute inset-0 bg-white transition-opacity duration-500 ${
+        done ? 'opacity-0' : 'animate-canvas-pulse'
+      }`}
+    />
+  )
 }
 
+/**
+ * Suspends until every model this circuit needs sits in drei's cache, then
+ * reports ready — a fact about the models rather than a guess.
+ *
+ * `useProgress` cannot answer this: drei zeroes `loaded`/`total` as soon as a
+ * batch finishes, so a `total > 0 && loaded >= total` test is only ever true by
+ * accident and normally left the scene hidden until the timeout fired.
+ */
+function ModelsProbe({
+  urls,
+  onReady,
+}: {
+  urls: string[]
+  onReady: () => void
+}) {
+  useGLTF(urls)
+  useEffect(() => onReady(), [onReady])
+  return null
+}
+
+/** Reveal even if a model 404s or hangs — a broken part should not hide the circuit. */
+const READY_TIMEOUT_MS = 12_000
+
 const Scene = observer(function Scene({ project }: { project: EditorProject }) {
-  const visible = useSceneReady()
   const circuit = project.circuit
-  // fetch exactly the models this circuit uses, as early as we know them
-  useEffect(
-    () => preloadModels(circuit.parts.map((p) => p.type)),
-    [circuit, circuit.parts.length],
-  )
   const rootRef = useCallback(
     (g: THREE.Group | null) => circuit.setRoot(g),
     [circuit],
@@ -75,7 +85,6 @@ const Scene = observer(function Scene({ project }: { project: EditorProject }) {
       resize={{ debounce: 0 }}
       onPointerMissed={() => project.setSelection(null)}
       gl={{ preserveDrawingBuffer: true }}
-      style={{ opacity: visible ? 1 : 0, transition: 'opacity 300ms' }}
     >
       <color attach="background" args={[CANVAS_BG]} />
       <AdaptiveDpr pixelated />
@@ -115,16 +124,40 @@ const Scene = observer(function Scene({ project }: { project: EditorProject }) {
   )
 })
 
-export function ProjectCanvas({ project }: { project: EditorProject }) {
-  return (
-    <Suspense
-      fallback={
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-          Loading…
-        </div>
-      }
-    >
-      <Scene project={project} />
-    </Suspense>
+export const ProjectCanvas = observer(function ProjectCanvas({
+  project,
+  onReady,
+}: {
+  project: EditorProject
+  /** Fired once every model in the circuit has loaded (the preview capture waits on it). */
+  onReady?: () => void
+}) {
+  const [ready, setReady] = useState(false)
+  const markReady = useCallback(() => {
+    setReady(true)
+    onReady?.()
+  }, [onReady])
+  // exactly the models this circuit needs, resolved as early as we know them
+  const urls = useMemo(
+    () => modelUrlsFor(project.circuit.parts.map((p) => p.type)),
+    [project.circuit, project.circuit.parts.length],
   )
-}
+  useEffect(() => {
+    const t = setTimeout(markReady, READY_TIMEOUT_MS)
+    return () => clearTimeout(t)
+  }, [markReady])
+  // The probe sits beside the canvas, not inside it: a suspended sibling in the
+  // R3F tree stops React from ever rendering later children there, so a probe
+  // mounted inside never ran and every scene waited out the timeout.
+  return (
+    <>
+      <Suspense fallback={null}>
+        <Scene project={project} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ModelsProbe urls={urls} onReady={markReady} />
+      </Suspense>
+      <LoadingVeil done={ready} />
+    </>
+  )
+})

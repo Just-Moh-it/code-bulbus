@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useProgress } from '@react-three/drei'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useProjectSnapshot } from '#/lib/collections'
 import { EditorProject, fitCameraToObjects } from '#/editor/models'
@@ -28,6 +27,10 @@ function PreviewPage() {
     if (server && !json) setJson({ ...server.project, circuit: server.circuit })
   }, [server, json])
   const project = useMemo(() => (json ? new EditorProject(json) : null), [json])
+  const modelsReady = useRef(false)
+  const onModelsReady = useCallback(() => {
+    modelsReady.current = true
+  }, [])
 
   useEffect(() => {
     if (!project) return
@@ -41,15 +44,11 @@ function PreviewPage() {
       if (cancelled) return
       const parts = project.circuit.parts
       // `part.isReady` only means the container mounted — the GLB behind it can
-      // still be in flight (that is how breadboards/Arduinos went missing).
-      // The loader store is the real signal; require an idle pass over it.
-      const loaders = useProgress.getState()
+      // still be in flight (that is how breadboards/Arduinos went missing), so
+      // wait for the canvas's own models-loaded signal. (The drei loader store
+      // cannot answer this: it zeroes loaded/total the moment a batch finishes.)
       const ready =
-        parts.length > 0 &&
-        parts.every((p) => p.object) &&
-        loaders.total > 0 &&
-        loaders.loaded >= loaders.total &&
-        !loaders.active
+        parts.length > 0 && parts.every((p) => p.object) && modelsReady.current
       if (!ready && Date.now() - started < MAX_WAIT_MS) {
         setTimeout(settle, 200)
         return
@@ -83,7 +82,7 @@ function PreviewPage() {
 
   return (
     <div className="h-screen w-screen" style={{ background: CANVAS_BG }}>
-      {project && <ProjectCanvas project={project} />}
+      {project && <ProjectCanvas project={project} onReady={onModelsReady} />}
     </div>
   )
 }

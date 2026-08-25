@@ -48,9 +48,17 @@ export const MODEL_URLS = [...new Set(Object.values(MODEL_URL_BY_TYPE))]
  * needs: the 2.5 MB Arduino should not be queueing behind models (rpi, motor)
  * this circuit never shows.
  */
-export function preloadModels(types?: PartType[]) {
-  const urls = types
-    ? [...new Set(types.map((t) => MODEL_URL_BY_TYPE[t]).filter(Boolean))]
+/** Deduped model urls for the given part types; every model when omitted. */
+export function modelUrlsFor(types?: PartType[]): string[] {
+  return types
+    ? [
+        ...new Set(
+          types.map((t) => MODEL_URL_BY_TYPE[t]).filter(Boolean) as string[],
+        ),
+      ]
     : MODEL_URLS
-  urls.forEach((u) => useGLTF.preload(u as string))
+}
+
+export function preloadModels(types?: PartType[]) {
+  modelUrlsFor(types).forEach((u) => useGLTF.preload(u))
 }
