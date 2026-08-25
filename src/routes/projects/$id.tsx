@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
@@ -28,8 +28,25 @@ import { preloadSpice } from '#/sim'
 import type { ProjectJSON } from '#/sim/types'
 
 export const Route = createFileRoute('/projects/$id')({
-  validateSearch: (s: Record<string, unknown>): { template?: string } =>
-    typeof s.template === 'string' ? { template: s.template } : {},
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { template?: string; clone?: boolean } => ({
+    ...(typeof s.template === 'string' ? { template: s.template } : {}),
+    ...(s.clone === true || s.clone === 'true' ? { clone: true } : {}),
+  }),
+  // `?clone` opens a personal copy: duplicate first, then *replace* this entry
+  // so Back returns to where the user came from instead of cloning again.
+  beforeLoad: async ({ params, search }) => {
+    if (!search.clone) return
+    const newId = crypto.randomUUID()
+    await duplicateProject({ id: params.id, newId })
+    throw redirect({
+      to: '/projects/$id',
+      params: { id: newId },
+      search: {},
+      replace: true,
+    })
+  },
   component: ProjectPage,
   ssr: false,
   head: () => ({ meta: [{ title: 'bulbus' }] }),

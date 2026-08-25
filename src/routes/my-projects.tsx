@@ -1,30 +1,32 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import { ProjectGrid, SectionLabel, SiteHeader } from '../index'
+import { ProjectGrid, SectionLabel, SiteHeader } from './index'
 import { useProjectList } from '#/lib/collections'
+import { useSession } from '#/lib/auth-client'
 import { Button } from '#/components/ui/button'
 
 // The grid reads Electric-backed collections, which need `window`.
-export const Route = createFileRoute('/projects/')({
-  component: Projects,
+export const Route = createFileRoute('/my-projects')({
+  component: MyProjects,
   ssr: false,
-  head: () => ({ meta: [{ title: 'Projects · bulbus' }] }),
+  head: () => ({ meta: [{ title: 'My projects · bulbus' }] }),
 })
 
-/** Every project (the curated ones live on the landing page). */
-function Projects() {
-  const projects = useProjectList()
+/** Only what this session owns; community work lives on Explore. */
+function MyProjects() {
+  const { data: session } = useSession()
+  const projects = useProjectList({ userId: session?.user.id ?? null })
   const navigate = useNavigate()
   return (
     <>
       <SiteHeader />
       <main className="min-h-[calc(100vh-2.75rem)]">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-10">
           <div className="flex items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
               <SectionLabel>Workspace</SectionLabel>
               <h1 className="text-2xl font-semibold tracking-tight">
-                All projects
+                My projects
               </h1>
             </div>
             <Button

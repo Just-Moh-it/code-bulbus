@@ -189,22 +189,30 @@ export const rowToMeta = (r: ProjectRow): ProjectMeta => ({
 })
 
 /** Card data for the grids. `undefined` while the shape is still loading. */
-export function useProjectList(filter?: { isPublic?: boolean }) {
+export function useProjectList(filter?: {
+  isPublic?: boolean
+  /** Only this owner's projects. `null` means "not signed in": no rows. */
+  userId?: string | null
+}) {
   const onlyPublic = filter?.isPublic
+  const onlyUser = filter?.userId
+  const filterByUser = filter !== undefined && 'userId' in filter
   const { data, isLoading } = useLiveQuery(
     (q) => q.from({ p: projectsCollection() }),
     [],
   )
   return useMemo(() => {
     if (isLoading) return undefined
-    const rows = ((data as ProjectRow[] | undefined) ?? []).filter((r) =>
-      onlyPublic === undefined ? true : r.is_public === onlyPublic,
-    )
+    const rows = ((data as ProjectRow[] | undefined) ?? [])
+      .filter((r) =>
+        onlyPublic === undefined ? true : r.is_public === onlyPublic,
+      )
+      .filter((r) => (filterByUser ? r.user_id === onlyUser : true))
     return rows
       .slice()
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
       .map((r) => ({ id: r.id, name: r.name, previewUrl: r.preview }))
-  }, [data, isLoading, onlyPublic])
+  }, [data, isLoading, onlyPublic, onlyUser, filterByUser])
 }
 
 /** Project metadata + circuit. `undefined` while loading, `null` when there is no such project. */

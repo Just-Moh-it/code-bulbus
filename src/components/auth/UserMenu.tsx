@@ -96,7 +96,14 @@ function Avatar({ user }: { user: SessionUser | null }) {
  * header. Anonymous visitors get a sign-in path and a session reset; signed-in
  * users get a log out.
  */
-export function UserMenu({ className }: { className?: string }) {
+export function UserMenu({
+  className,
+  withName = false,
+}: {
+  className?: string
+  /** Show the display name (or "Guest") beside the avatar. */
+  withName?: boolean
+}) {
   const { data, isPending } = useSession()
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -129,10 +136,18 @@ export function UserMenu({ className }: { className?: string }) {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            size="icon"
-            className={cn(AVATAR_CLASS, className)}
+            size={withName ? 'sm' : 'icon'}
+            className={cn(
+              withName ? 'gap-2 pr-1 pl-2.5' : AVATAR_CLASS,
+              className,
+            )}
             aria-label="Account menu"
           >
+            {withName && (
+              <span className="max-w-28 truncate text-muted-foreground">
+                {anonymous ? 'Guest' : user.name || 'Account'}
+              </span>
+            )}
             <Avatar user={user} />
           </Button>
         </DropdownMenuTrigger>
